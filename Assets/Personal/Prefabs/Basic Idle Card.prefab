@@ -514,7 +514,7 @@ GameObject:
   - component: {fileID: 5107855747949307032}
   - component: {fileID: 6046926215057715321}
   m_Layer: 5
-  m_Name: Idle Card
+  m_Name: Basic Idle Card
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1024,7 +1024,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 95536a7810238db4abb5c02d9b700c92, type: 3}
+  m_Sprite: {fileID: 21300000, guid: e0928347543510d4f93c335fb19de17b, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
