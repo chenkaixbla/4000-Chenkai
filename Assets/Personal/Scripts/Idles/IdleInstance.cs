@@ -50,7 +50,7 @@ public class IdleInstance
     void GrantReward()
     {
         currentXP += idleData.xpReward;
-        idleData.finishAction?.Apply(this);
+        idleData.ApplyFinishActions(this);
     }
     
     void CheckLevel()

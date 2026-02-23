@@ -18,13 +18,27 @@ MonoBehaviour:
   xpReward: 10
   maxXP: 100
   icon: {fileID: 21300000, guid: ed2186e15040af748a6d6484eebdc5e7, type: 3}
+  finishActions:
+  - finishType: 0
+    finishAction:
+      rid: 1041843865319899221
+  - finishType: 1
+    finishAction:
+      rid: 1041843865319899225
   finishType: 1
   finishAction:
-    rid: 1041843547340800218
+    rid: -2
   references:
     version: 2
     RefIds:
-    - rid: 1041843547340800218
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1041843865319899221
+      type: {class: FinishAction_GiveItem, ns: , asm: Assembly-CSharp}
+      data:
+        itemsData: {fileID: 11400000, guid: 650ae359c3683fe41bb0ac92512dd965, type: 2}
+        quantity: 0
+    - rid: 1041843865319899225
       type: {class: FinishAction_GiveStat, ns: , asm: Assembly-CSharp}
       data:
-        attackDamageOffset: 10
+        attackDamageOffset: 2
