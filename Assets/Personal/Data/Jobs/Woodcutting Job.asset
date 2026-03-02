@@ -18,3 +18,9 @@ MonoBehaviour:
   idleDatas:
   - {fileID: 11400000, guid: 7ba4b30cc4e8b5241a49e1195ae21b63, type: 2}
   - {fileID: 11400000, guid: 324f98a038cb4614fb07fa17c39c006e, type: 2}
+  - {fileID: 11400000, guid: a26cd10c112fd7245b8eef793fd0089c, type: 2}
+  - {fileID: 11400000, guid: 4aaa4e02c52723f458fab5dedcb4f93d, type: 2}
+  - {fileID: 11400000, guid: 71e08354a3a64a447b5584a9b2c3045a, type: 2}
+  - {fileID: 11400000, guid: 38eab6a8c45ba5a4f972cdc9584ae747, type: 2}
+  - {fileID: 11400000, guid: 72edab178a7022d4098611f30ca2c0e6, type: 2}
+  - {fileID: 11400000, guid: af958651ea512514d80a3453c192fcb1, type: 2}

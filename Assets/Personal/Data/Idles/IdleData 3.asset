@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
-  m_Name: Wood Idle 2
+  m_Name: IdleData 3
   m_EditorClassIdentifier: Assembly-CSharp::IdleData
-  guid: a230b4cd-027f-4127-a535-e3cb01994d62
-  displayName: Pine Tree
-  interval: 3
-  xpReward: 10
+  guid: 2ec2432b-4e4d-4750-9d34-1a0af6f52d44
+  displayName: xp tree5
+  interval: 6
+  xpReward: 52
   maxXP: 100
-  icon: {fileID: 21300000, guid: ed2186e15040af748a6d6484eebdc5e7, type: 3}
+  icon: {fileID: 21300000, guid: a67d80a1e6dd824409cb30f62dc28448, type: 3}
   finishActions:
   - finishType: 0
     finishAction:
-      rid: 6774941586506383553
-  finishType: 1
+      rid: 6774941657363906562
+  finishType: 0
   finishAction:
     rid: -2
   references:
@@ -30,8 +30,8 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 6774941586506383553
+    - rid: 6774941657363906562
       type: {class: FinishAction_GiveItem, ns: , asm: Assembly-CSharp}
       data:
-        itemsData: {fileID: 11400000, guid: 650ae359c3683fe41bb0ac92512dd965, type: 2}
+        itemsData: {fileID: 11400000, guid: 8d99ba5fb4259df4c82f5cbdb349786d, type: 2}
         quantity: 1
