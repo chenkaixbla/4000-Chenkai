@@ -21,11 +21,18 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         Food = (int)Catalog_ItemType.Food
     }
 
+    private enum JobIdleRowAction
+    {
+        None,
+        Remove,
+        Move
+    }
+
     private const string SettingsAssetPath = "Assets/Personal/Scripts/Catalog/Catalog_DataSettings.asset";
     private const string StretchTablesPrefKey = "Catalog_DataSpreadsheetWindow.StretchTables";
     private const float ObjectCellWidth = 220f;
     private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 72f, 24f };
-    private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 300f, 24f };
+    private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 300f, 46f, 24f };
     private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 24f };
     private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 75f, 75f, 85f, 220f, 200f, 24f };
 
@@ -414,15 +421,30 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawIdleHeader(columnWidths);
 
         int removeIndex = -1;
+        int moveFromIndex = -1;
+        int moveToIndex = -1;
         for (int i = 0; i < jobData.idleDatas.Count; i++)
         {
-            if (DrawIdleRow(jobData, i, selectedIdleIds, columnWidths))
+            JobIdleRowAction rowAction = DrawIdleRow(jobData, i, selectedIdleIds, columnWidths, out int targetIndex);
+            if (rowAction == JobIdleRowAction.Remove)
             {
                 removeIndex = i;
+                break;
+            }
+
+            if (rowAction == JobIdleRowAction.Move)
+            {
+                moveFromIndex = i;
+                moveToIndex = targetIndex;
+                break;
             }
         }
 
-        if (removeIndex >= 0)
+        if (moveFromIndex >= 0)
+        {
+            MoveIdleRow(jobData, moveFromIndex, moveToIndex);
+        }
+        else if (removeIndex >= 0)
         {
             IdleData removedIdleData = jobData.idleDatas[removeIndex];
             if (removedIdleData != null)
@@ -449,8 +471,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("XP Reward", widths[4]);
         DrawHeaderCell("Max XP", widths[5]);
         DrawHeaderCell("Icon", widths[6]);
-        DrawHeaderCell("Finish Actions", widths[7]);
-        DrawHeaderCell("X", widths[8]);
+        DrawHeaderCell("Rules", widths[7]);
+        DrawHeaderCell("Move", widths[8]);
+        DrawHeaderCell("X", widths[9]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -503,8 +526,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    private bool DrawIdleRow(JobData jobData, int index, HashSet<int> selectedIdleIds, float[] widths)
+    private JobIdleRowAction DrawIdleRow(JobData jobData, int index, HashSet<int> selectedIdleIds, float[] widths, out int targetIndex)
     {
+        targetIndex = index;
         HashSet<int> expandedFinishActions = GetJobIdleFinishActionRows(jobData);
         IdleData row = jobData.idleDatas[index];
         int rowId = row != null ? row.GetInstanceID() : 0;
@@ -544,10 +568,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
 
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeNull = GUILayout.Button("X", GUILayout.Width(widths[8]));
+            bool removeNull = GUILayout.Button("X", GUILayout.Width(widths[9]));
             EditorGUILayout.EndHorizontal();
             expandedFinishActions.Remove(finishActionRowKey);
-            return removeNull;
+            return removeNull ? JobIdleRowAction.Remove : JobIdleRowAction.None;
         }
 
         SerializedObject serializedRow = new SerializedObject(row);
@@ -560,6 +584,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawCompactProperty(serializedRow.FindProperty("icon"), widths[6]);
 
         SerializedProperty finishActionsProperty = serializedRow.FindProperty("finishActions");
+        SerializedProperty startConditionsProperty = serializedRow.FindProperty("startConditions");
         bool isExpanded = expandedFinishActions.Contains(finishActionRowKey);
         EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[7]));
         bool nextExpanded = isExpanded;
@@ -568,7 +593,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             nextExpanded = !isExpanded;
         }
 
-        EditorGUILayout.LabelField(GetFinishActionsLabel(finishActionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
+        EditorGUILayout.LabelField(GetIdleRulesLabel(finishActionsProperty, startConditionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
         EditorGUILayout.EndHorizontal();
 
         if (nextExpanded != isExpanded)
@@ -583,7 +608,22 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
         }
 
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[8]))
+        bool moveUp = false;
+        bool moveDown = false;
+        using (new EditorGUILayout.HorizontalScope(GUILayout.Width(widths[8])))
+        {
+            using (new EditorGUI.DisabledScope(index <= 0))
+            {
+                moveUp = GUILayout.Button("^", EditorStyles.miniButtonLeft);
+            }
+
+            using (new EditorGUI.DisabledScope(index >= jobData.idleDatas.Count - 1))
+            {
+                moveDown = GUILayout.Button("v", EditorStyles.miniButtonRight);
+            }
+        }
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]))
             && EditorUtility.DisplayDialog(
                 "Remove IdleData Reference",
                 $"Remove '{row.name}' from '{jobData.name}' idle list?",
@@ -602,9 +642,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(GetFinishActionIndentWidth(widths, 7));
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(Mathf.Max(180f, widths[7] + widths[8]))))
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(Mathf.Max(180f, widths[7] + widths[8] + widths[9]))))
             {
-                DrawFinishActionsDetails(finishActionsProperty);
+                DrawIdleRulesDetails(finishActionsProperty, startConditionsProperty);
             }
             EditorGUILayout.EndHorizontal();
         }
@@ -618,7 +658,24 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             EditorUtility.SetDirty(row);
         }
 
-        return removeRow;
+        if (removeRow)
+        {
+            return JobIdleRowAction.Remove;
+        }
+
+        if (moveUp)
+        {
+            targetIndex = index - 1;
+            return JobIdleRowAction.Move;
+        }
+
+        if (moveDown)
+        {
+            targetIndex = index + 1;
+            return JobIdleRowAction.Move;
+        }
+
+        return JobIdleRowAction.None;
     }
 
     private void DrawItemsCategory()
@@ -981,7 +1038,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("XP Reward", widths[4]);
         DrawHeaderCell("Max XP", widths[5]);
         DrawHeaderCell("Icon", widths[6]);
-        DrawHeaderCell("Finish Actions", widths[7]);
+        DrawHeaderCell("Rules", widths[7]);
         DrawHeaderCell("Jobs", widths[8]);
         DrawHeaderCell("X", widths[9]);
         EditorGUILayout.EndHorizontal();
@@ -1040,6 +1097,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawCompactProperty(serializedRow.FindProperty("maxXP"), widths[5]);
         DrawCompactProperty(serializedRow.FindProperty("icon"), widths[6]);
         SerializedProperty finishActionsProperty = serializedRow.FindProperty("finishActions");
+        SerializedProperty startConditionsProperty = serializedRow.FindProperty("startConditions");
         bool isExpanded = _expandedIdleAssetFinishActionRows.Contains(rowId);
         EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[7]));
         bool nextExpanded = isExpanded;
@@ -1048,7 +1106,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             nextExpanded = !isExpanded;
         }
 
-        EditorGUILayout.LabelField(GetFinishActionsLabel(finishActionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
+        EditorGUILayout.LabelField(GetIdleRulesLabel(finishActionsProperty, startConditionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
         EditorGUILayout.EndHorizontal();
 
         if (nextExpanded != isExpanded)
@@ -1081,7 +1139,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             GUILayout.Space(GetFinishActionIndentWidth(widths, 7));
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(Mathf.Max(180f, widths[7] + widths[8] + widths[9]))))
             {
-                DrawFinishActionsDetails(finishActionsProperty);
+                DrawIdleRulesDetails(finishActionsProperty, startConditionsProperty);
             }
             EditorGUILayout.EndHorizontal();
         }
@@ -1420,6 +1478,60 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return $"{count} Actions";
     }
 
+    private static string GetConditionRulesLabel(SerializedProperty conditionsProperty)
+    {
+        if (conditionsProperty == null || !conditionsProperty.isArray)
+        {
+            return "-";
+        }
+
+        int count = conditionsProperty.arraySize;
+        if (count <= 0)
+        {
+            return "None";
+        }
+
+        if (count == 1)
+        {
+            SerializedProperty firstConditionEntry = conditionsProperty.GetArrayElementAtIndex(0);
+            SerializedProperty conditionTypeProperty = firstConditionEntry?.FindPropertyRelative("conditionType");
+            if (conditionTypeProperty != null
+                && conditionTypeProperty.propertyType == SerializedPropertyType.Enum
+                && conditionTypeProperty.enumValueIndex >= 0
+                && conditionTypeProperty.enumValueIndex < conditionTypeProperty.enumDisplayNames.Length)
+            {
+                return conditionTypeProperty.enumDisplayNames[conditionTypeProperty.enumValueIndex];
+            }
+
+            return "1 Condition";
+        }
+
+        return $"{count} Conditions";
+    }
+
+    private static string GetIdleRulesLabel(SerializedProperty finishActionsProperty, SerializedProperty conditionsProperty)
+    {
+        bool hasActions = finishActionsProperty != null && finishActionsProperty.isArray && finishActionsProperty.arraySize > 0;
+        bool hasConditions = conditionsProperty != null && conditionsProperty.isArray && conditionsProperty.arraySize > 0;
+
+        if (!hasActions && !hasConditions)
+        {
+            return "None";
+        }
+
+        if (!hasActions)
+        {
+            return GetConditionRulesLabel(conditionsProperty);
+        }
+
+        if (!hasConditions)
+        {
+            return GetFinishActionsLabel(finishActionsProperty);
+        }
+
+        return $"{finishActionsProperty.arraySize}A / {conditionsProperty.arraySize}C";
+    }
+
     private static void DrawFinishActionsDetails(SerializedProperty finishActionsProperty)
     {
         EditorGUILayout.LabelField("Finish Actions", EditorStyles.miniBoldLabel);
@@ -1491,6 +1603,110 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 }
             }
         }
+    }
+
+    private static void DrawConditionRulesDetails(SerializedProperty conditionsProperty)
+    {
+        EditorGUILayout.LabelField("Start Conditions", EditorStyles.miniBoldLabel);
+
+        if (conditionsProperty == null || !conditionsProperty.isArray)
+        {
+            EditorGUILayout.HelpBox("Start conditions list is not available.", MessageType.Info);
+            return;
+        }
+
+        int removeIndex = -1;
+        for (int i = 0; i < conditionsProperty.arraySize; i++)
+        {
+            SerializedProperty conditionEntry = conditionsProperty.GetArrayElementAtIndex(i);
+            if (conditionEntry == null)
+            {
+                continue;
+            }
+
+            SerializedProperty conditionTypeProperty = conditionEntry.FindPropertyRelative("conditionType");
+            SerializedProperty conditionProperty = conditionEntry.FindPropertyRelative("condition");
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField($"Rule {i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+                if (conditionTypeProperty != null)
+                {
+                    EditorGUI.BeginChangeCheck();
+                    EditorGUILayout.PropertyField(conditionTypeProperty, GUIContent.none);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        EnsureConditionRuleType(conditionTypeProperty, conditionProperty);
+                    }
+                }
+                else
+                {
+                    GUILayout.Label("-");
+                }
+
+                if (GUILayout.Button("X", GUILayout.Width(24f)))
+                {
+                    removeIndex = i;
+                }
+
+                EditorGUILayout.EndHorizontal();
+                EnsureConditionRuleType(conditionTypeProperty, conditionProperty);
+                DrawManagedReferenceChildren(conditionProperty, "No condition rule assigned for this entry.");
+            }
+        }
+
+        if (removeIndex >= 0)
+        {
+            conditionsProperty.DeleteArrayElementAtIndex(removeIndex);
+        }
+
+        if (GUILayout.Button("Add Condition", GUILayout.Width(104f)))
+        {
+            int newIndex = conditionsProperty.arraySize;
+            conditionsProperty.arraySize++;
+
+            SerializedProperty newConditionEntry = conditionsProperty.GetArrayElementAtIndex(newIndex);
+            if (newConditionEntry != null)
+            {
+                SerializedProperty newConditionTypeProperty = newConditionEntry.FindPropertyRelative("conditionType");
+                if (newConditionTypeProperty != null && newConditionTypeProperty.propertyType == SerializedPropertyType.Enum)
+                {
+                    newConditionTypeProperty.enumValueIndex = 0;
+                }
+
+                SerializedProperty newConditionProperty = newConditionEntry.FindPropertyRelative("condition");
+                if (newConditionProperty != null)
+                {
+                    newConditionProperty.managedReferenceValue = ConditionRuleUtility.CreateConditionRule(ConditionRuleType.Level);
+                }
+            }
+        }
+    }
+
+    private static void DrawIdleRulesDetails(SerializedProperty finishActionsProperty, SerializedProperty conditionsProperty)
+    {
+        DrawFinishActionsDetails(finishActionsProperty);
+        EditorGUILayout.Space(4f);
+        DrawConditionRulesDetails(conditionsProperty);
+    }
+
+    private static void EnsureConditionRuleType(SerializedProperty conditionTypeProperty, SerializedProperty conditionProperty)
+    {
+        if (conditionTypeProperty == null
+            || conditionTypeProperty.propertyType != SerializedPropertyType.Enum
+            || conditionProperty == null)
+        {
+            return;
+        }
+
+        ConditionRuleType selectedType = (ConditionRuleType)conditionTypeProperty.enumValueIndex;
+        if (conditionProperty.managedReferenceValue is ConditionRule existingCondition && existingCondition.RuleType == selectedType)
+        {
+            return;
+        }
+
+        conditionProperty.managedReferenceValue = ConditionRuleUtility.CreateConditionRule(selectedType);
     }
 
     private static void DrawManagedReferenceChildren(SerializedProperty managedReferenceProperty, string emptyMessage)
@@ -1735,6 +1951,55 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         Undo.RecordObject(jobData, "Add IdleData");
         jobData.idleDatas.Add(idleData);
         EditorUtility.SetDirty(jobData);
+    }
+
+    private void MoveIdleRow(JobData jobData, int fromIndex, int toIndex)
+    {
+        if (jobData == null || jobData.idleDatas == null)
+        {
+            return;
+        }
+
+        if (fromIndex < 0 || toIndex < 0 || fromIndex >= jobData.idleDatas.Count || toIndex >= jobData.idleDatas.Count || fromIndex == toIndex)
+        {
+            return;
+        }
+
+        Undo.RecordObject(jobData, "Reorder IdleData");
+        IdleData movedRow = jobData.idleDatas[fromIndex];
+        jobData.idleDatas.RemoveAt(fromIndex);
+        jobData.idleDatas.Insert(toIndex, movedRow);
+        EditorUtility.SetDirty(jobData);
+
+        HashSet<int> expandedRows = GetJobIdleFinishActionRows(jobData);
+        if (expandedRows.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<int> remappedRows = new();
+        foreach (int rowIndex in expandedRows)
+        {
+            if (rowIndex == fromIndex)
+            {
+                remappedRows.Add(toIndex);
+            }
+            else if (fromIndex < toIndex && rowIndex > fromIndex && rowIndex <= toIndex)
+            {
+                remappedRows.Add(rowIndex - 1);
+            }
+            else if (fromIndex > toIndex && rowIndex >= toIndex && rowIndex < fromIndex)
+            {
+                remappedRows.Add(rowIndex + 1);
+            }
+            else
+            {
+                remappedRows.Add(rowIndex);
+            }
+        }
+
+        expandedRows.Clear();
+        expandedRows.UnionWith(remappedRows);
     }
 
     private bool PassesItemFilter(ItemsData itemData)

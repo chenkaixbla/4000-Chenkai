@@ -13,13 +13,20 @@ public class IdleFinishActionEntry
 [CreateAssetMenu(fileName = "IdleData", menuName = "Game/IdleData")]
 public class IdleData : ScriptableObject
 {
+    [Title("General")]
+    [AssetPreview] public Sprite icon;
     public string guid;
     public string displayName;
     public float interval;
-    public int xpReward;
-    public int maxXP;
-    [AssetPreview] public Sprite icon;
 
+    [Title("Leveling")]
+    public int idleXPReward = 100;
+    public int jobXPReward = 50;
+
+
+    [Title("Conditions & Actions")]
+
+    public List<ConditionRuleEntry> startConditions = new();
     public List<IdleFinishActionEntry> finishActions = new();
 
     [SerializeField, HideInInspector] private IdleFinishActionType finishType;
@@ -28,12 +35,14 @@ public class IdleData : ScriptableObject
     void OnEnable()
     {
         EnsureGuid();
+        EnsureStartConditions();
         EnsureFinishActions();
     }
 
     void OnValidate()
     {
         EnsureGuid();
+        EnsureStartConditions();
         EnsureFinishActions();
     }
 
@@ -106,6 +115,56 @@ public class IdleData : ScriptableObject
         }
 
         finishAction = null;
+    }
+
+    public bool AreStartConditionsMet(IdleInstance idleInstance = null, JobInstance jobInstance = null)
+    {
+        EnsureStartConditions();
+
+        if (startConditions == null || startConditions.Count == 0)
+        {
+            return true;
+        }
+
+        ConditionContext context = idleInstance != null || jobInstance != null
+            ? new ConditionContext(idleInstance, jobInstance)
+            : ConditionContext.Empty;
+
+        foreach (ConditionRuleEntry entry in startConditions)
+        {
+            if (entry == null)
+            {
+                continue;
+            }
+
+            ConditionRuleUtility.EnsureConditionRuleType(entry);
+            if (entry.condition == null || !entry.condition.IsMet(context))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void EnsureStartConditions()
+    {
+        if (startConditions == null)
+        {
+            startConditions = new List<ConditionRuleEntry>();
+        }
+
+        for (int i = 0; i < startConditions.Count; i++)
+        {
+            ConditionRuleEntry entry = startConditions[i];
+            if (entry == null)
+            {
+                entry = new ConditionRuleEntry();
+                startConditions[i] = entry;
+            }
+
+            ConditionRuleUtility.EnsureConditionRuleType(entry);
+        }
     }
 
     void EnsureFinishActionType(IdleFinishActionEntry entry)

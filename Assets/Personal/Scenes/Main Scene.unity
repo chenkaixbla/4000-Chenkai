@@ -3479,6 +3479,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CurrencyManager
   currentCurrency: 0
+  currencyText: {fileID: 2099648587}
 --- !u!4 &1377953213
 Transform:
   m_ObjectHideFlags: 0

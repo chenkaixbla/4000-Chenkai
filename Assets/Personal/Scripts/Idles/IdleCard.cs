@@ -12,6 +12,7 @@ public class IdleCard : MonoBehaviour
     public IdleInstance currentInstance;
 
     [Title("UI")]
+    public GameObject lockRoot;
     public TMP_Text displayNameText;
     public TMP_Text subtitleText;
     public Image iconImage;
@@ -35,6 +36,18 @@ public class IdleCard : MonoBehaviour
     [Button]
     public void CreateNewInstance()
     {
+        if (idleData == null)
+        {
+            return;
+        }
+
+        if (!idleData.AreStartConditionsMet())
+        {
+            Debug.Log($"Idle '{idleData.displayName}' cannot start because its conditions are not met.");
+            ShowLockedState(idleData, 0, 0);
+            return;
+        }
+
         IdleInstance newInstance = new IdleInstance(idleData);
         SetInstance(newInstance);
     }
@@ -88,17 +101,28 @@ public class IdleCard : MonoBehaviour
         displayNameText.text = inst.idleData.displayName;
         iconImage.sprite = inst.idleData.icon;
 
-        // Subtitle text shows ex. 10 XP / 5 seconds
-        subtitleText.text = $"{inst.idleData.xpReward} XP / {inst.idleData.interval} seconds";
+        if (!inst.AreStartConditionsMet())
+        {
+            ShowLockedState(inst.idleData, inst.level, inst.currentXP);
+            return;
+        }
 
-        xpProgressText.text = $"{inst.currentXP} / {inst.idleData.maxXP} XP";
+        int maxXP = GetMaxXP(inst);
 
-        float progress = inst.idleData.maxXP > 0 ? (float)inst.currentXP / inst.idleData.maxXP : 0f;
+        subtitleText.text = $"{inst.idleData.idleXPReward} XP / {inst.idleData.interval} seconds";
+
+        xpProgressText.text = maxXP > 0
+            ? $"{inst.currentXP} / {maxXP} XP"
+            : $"{inst.currentXP} XP";
+
+        float progress = maxXP > 0 ? (float)inst.currentXP / maxXP : 0f;
         xpProgressBar.fillAmount = progress;
 
         timerProgressBar.fillAmount = inst.idleData.interval > 0f ? inst.timer / inst.idleData.interval : 0f;
 
         levelText.text = $"Level: {inst.level}";
+
+        lockRoot?.SetActive(false);
     }
 
     void ResetUI()
@@ -110,5 +134,32 @@ public class IdleCard : MonoBehaviour
         xpProgressText.text = "";
         xpProgressBar.fillAmount = 0f;
         levelText.text = "";
+        lockRoot?.SetActive(false);
+
+    }
+
+    void ShowLockedState(IdleData data, int level, int currentXP)
+    {
+        if (data == null)
+        {
+            ResetUI();
+            return;
+        }
+        
+
+        displayNameText.text = data.displayName;
+        subtitleText.text = "Locked";
+        iconImage.sprite = data.icon;
+        timerProgressBar.fillAmount = 0f;
+        xpProgressText.text = "";
+        xpProgressBar.fillAmount = 0;
+        levelText.text = $"Locked - Level: {level}";
+
+        lockRoot?.SetActive(true);
+    }
+
+    int GetMaxXP(IdleInstance inst)
+    {
+        return XPUtility.GetMaxXPForLevel(inst.level);
     }
 }

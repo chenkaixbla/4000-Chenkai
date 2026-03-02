@@ -43,9 +43,9 @@ public class JobManager : MonoBehaviour
     {
         foreach (IdleData idleData in jobInstance.jobData.idleDatas)
         {
-            IdleInstance idleInstance = new IdleInstance(idleData);
+            IdleInstance idleInstance = new IdleInstance(idleData, jobInstance);
             jobInstance.idleInstances.Add(idleInstance);    // Add to job instance's list
-            idleManager.idleInstances.Add(idleInstance);    // Add to manager's list for updating
+            idleManager.AddInstance(idleInstance);    // Add to manager's list for updating
         }
     }
 }

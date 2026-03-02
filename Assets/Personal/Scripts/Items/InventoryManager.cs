@@ -8,7 +8,6 @@ public class InventoryManager : MonoBehaviour
 
     public List<ItemsInstance> itemInstances = new();
     [PropertyDropdown] public List<ItemsData> allItems = new();   // List of all items in the game, used for reference when adding items to the inventory
-
     void Awake()
     {
         Instance = this;
@@ -102,5 +101,21 @@ public class InventoryManager : MonoBehaviour
     public ItemsInstance GetInstance(int id)
     {
         return itemInstances.Find(instance => instance.itemData != null && instance.itemData.itemID == id);
+    }
+
+    public int GetQuantity(ItemsData itemData)
+    {
+        if (itemData == null)
+        {
+            return 0;
+        }
+
+        ItemsInstance itemInstance = itemInstances.Find(instance => instance.itemData == itemData);
+        return itemInstance != null ? itemInstance.quantity : 0;
+    }
+
+    public bool HasItem(ItemsData itemData, int quantity = 1)
+    {
+        return GetQuantity(itemData) >= Mathf.Max(0, quantity);
     }
 }

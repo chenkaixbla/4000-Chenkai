@@ -15,9 +15,10 @@ MonoBehaviour:
   guid: 056b6b60-3fba-41b7-9880-a5a5b335bcf4
   displayName: Oak Tree
   interval: 4
-  xpReward: 16
+  xpReward: 52
   maxXP: 100
   icon: {fileID: 21300000, guid: 90f67b789c9f7b44eac70357e4a0d534, type: 3}
+  startConditions: []
   finishActions:
   - finishType: 0
     finishAction:

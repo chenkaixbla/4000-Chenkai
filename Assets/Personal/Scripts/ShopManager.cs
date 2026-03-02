@@ -11,7 +11,7 @@ public class ShopManager : MonoBehaviour
     {
         if(inventory.RemoveItem(id, out ItemsData itemData, quantity))
         {
-            currency.AddCurrency(itemData.price * quantity);
+            currency.AddCurrency((ulong)(itemData.price * quantity));
         }
     }
 }
