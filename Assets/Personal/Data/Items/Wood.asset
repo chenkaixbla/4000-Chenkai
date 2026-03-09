@@ -17,4 +17,19 @@ MonoBehaviour:
   displayName: Wood
   itemDescriptions: 
   price: 2
+  purchaseRequirements:
+  - conditionType: 0
+    condition:
+      rid: 4864605783535648864
   icon: {fileID: 21300000, guid: a74dacc9bfcf47749a8630eac3456429, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: 4864605783535648864
+      type: {class: ConditionRule_Level, ns: , asm: Assembly-CSharp}
+      data:
+        target: 3
+        idleData: {fileID: 0}
+        jobData: {fileID: 11400000, guid: c99a4e1ce64057b43b7ccd8eb5463add, type: 2}
+        comparison: 0
+        requiredLevel: 3

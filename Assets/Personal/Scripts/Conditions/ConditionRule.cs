@@ -120,6 +120,36 @@ public class ConditionRule_ItemQuantity : ConditionRule
 
 public static class ConditionRuleUtility
 {
+    public static bool IsMet(ConditionRuleEntry entry, ConditionContext context)
+    {
+        if (entry == null)
+        {
+            return false;
+        }
+
+        EnsureConditionRuleType(entry);
+        return entry.condition != null && entry.condition.IsMet(context ?? ConditionContext.Empty);
+    }
+
+    public static bool AreAllMet(IReadOnlyList<ConditionRuleEntry> entries, ConditionContext context)
+    {
+        if (entries == null || entries.Count == 0)
+        {
+            return true;
+        }
+
+        ConditionContext evaluationContext = context ?? ConditionContext.Empty;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (!IsMet(entries[i], evaluationContext))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static void EnsureConditionRuleType(ConditionRuleEntry entry)
     {
         if (entry == null)
@@ -166,6 +196,105 @@ public static class ConditionRuleUtility
                 return currentValue < targetValue;
             default:
                 return false;
+        }
+    }
+
+    public static string GetRequirementLabel(ConditionRuleEntry entry)
+    {
+        if (entry == null)
+        {
+            return "?";
+        }
+
+        EnsureConditionRuleType(entry);
+        if (entry.condition == null)
+        {
+            return "?";
+        }
+
+        ConditionRule_Level levelRule = entry.condition as ConditionRule_Level;
+        if (levelRule != null)
+        {
+            return FormatRequirementValue(Mathf.Max(0, levelRule.requiredLevel), levelRule.comparison);
+        }
+
+        ConditionRule_XP xpRule = entry.condition as ConditionRule_XP;
+        if (xpRule != null)
+        {
+            return FormatRequirementValue(Mathf.Max(0, xpRule.requiredXP), xpRule.comparison);
+        }
+
+        ConditionRule_ItemQuantity itemQuantityRule = entry.condition as ConditionRule_ItemQuantity;
+        if (itemQuantityRule != null)
+        {
+            return FormatRequirementValue(Mathf.Max(0, itemQuantityRule.quantity), itemQuantityRule.comparison);
+        }
+
+        return "?";
+    }
+
+    public static Sprite GetRequirementIcon(ConditionRuleEntry entry)
+    {
+        if (entry == null)
+        {
+            return null;
+        }
+
+        EnsureConditionRuleType(entry);
+        if (entry.condition == null)
+        {
+            return null;
+        }
+
+        ConditionRule_Level levelRule = entry.condition as ConditionRule_Level;
+        if (levelRule != null)
+        {
+            return GetProgressTargetIcon(levelRule.target, levelRule.idleData, levelRule.jobData);
+        }
+
+        ConditionRule_XP xpRule = entry.condition as ConditionRule_XP;
+        if (xpRule != null)
+        {
+            return GetProgressTargetIcon(xpRule.target, xpRule.idleData, xpRule.jobData);
+        }
+
+        ConditionRule_ItemQuantity itemQuantityRule = entry.condition as ConditionRule_ItemQuantity;
+        if (itemQuantityRule != null && itemQuantityRule.itemData != null)
+        {
+            return itemQuantityRule.itemData.icon;
+        }
+
+        return null;
+    }
+
+    static string FormatRequirementValue(int value, ConditionComparisonType comparison)
+    {
+        switch (comparison)
+        {
+            case ConditionComparisonType.GreaterThanOrEqual:
+            case ConditionComparisonType.Equal:
+                return value.ToString();
+            case ConditionComparisonType.GreaterThan:
+                return $">{value}";
+            case ConditionComparisonType.LessThanOrEqual:
+                return $"<={value}";
+            case ConditionComparisonType.LessThan:
+                return $"<{value}";
+            default:
+                return value.ToString();
+        }
+    }
+
+    static Sprite GetProgressTargetIcon(ProgressionConditionTarget target, IdleData idleData, JobData jobData)
+    {
+        switch (target)
+        {
+            case ProgressionConditionTarget.SpecificIdle:
+                return idleData != null ? idleData.icon : null;
+            case ProgressionConditionTarget.SpecificJob:
+                return jobData != null ? jobData.jobIcon : null;
+            default:
+                return null;
         }
     }
 

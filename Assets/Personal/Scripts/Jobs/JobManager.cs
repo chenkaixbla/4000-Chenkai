@@ -4,18 +4,23 @@ using UnityEngine;
 
 public class JobManager : MonoBehaviour
 {
-    [Title("UI")]
-    public Transform jobElementContainer;
+    public Transform jobContainer;
     public JobElement jobElementPrefab;
 
-    [Title("References")]
+    [Line]
+
     public IdleCardsView idleCardsView;
     public IdleManager idleManager;
+    public CardViewManager cardViewManager;
+    public int idleViewIndex = 0;
 
     public List<JobData> jobDatas = new();
 
+    ScrollViewData viewData;
+
     void Start()
     {
+        viewData = cardViewManager.GetScrollViewData(idleViewIndex);
         SpawnAllJobs();
     }
 
@@ -23,7 +28,8 @@ public class JobManager : MonoBehaviour
     {
         foreach (JobData data in jobDatas)
         {
-            JobElement element = Instantiate(jobElementPrefab, jobElementContainer);
+            JobElement element = Instantiate(jobElementPrefab, jobContainer);
+            print(element == null);
             element.gameObject.name = data.jobName + " Element";
             element.displayNameText.text = data.jobName;
             element.iconImage.sprite = data.jobIcon;
@@ -34,9 +40,15 @@ public class JobManager : MonoBehaviour
                 instance.jobData = data;
                 SetupIdleInstances(instance);
 
-                element.button.onClick.AddListener(() => idleCardsView.UpdateView(instance));
+                element.button.onClick.AddListener( () => OnClickJob(idleCardsView, instance) );
             }
         }
+    }
+
+    void OnClickJob(IdleCardsView cardsView, JobInstance instance)
+    {
+        cardViewManager.ShowScrollView(idleViewIndex);
+        cardsView.UpdateView(instance);
     }
 
     void SetupIdleInstances(JobInstance jobInstance)
