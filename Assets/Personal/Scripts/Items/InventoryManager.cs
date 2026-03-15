@@ -5,6 +5,7 @@ using UnityEngine;
 public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager Instance { get; private set; }
+    public event System.Action OnInventoryChanged;
 
     public List<ItemsInstance> itemInstances = new();
     [PropertyDropdown] public List<ItemsData> allItems = new();   // List of all items in the game, used for reference when adding items to the inventory
@@ -30,6 +31,12 @@ public class InventoryManager : MonoBehaviour
 
     public ItemsInstance AddItem(ItemsData itemData, int quantity = 1)
     {
+        if (itemData == null)
+        {
+            Debug.LogWarning("Cannot add a null item to the inventory.");
+            return null;
+        }
+
         ItemsInstance inst = itemInstances.Find(instance => instance.itemData == itemData);
 
         if (inst != null)
@@ -43,6 +50,7 @@ public class InventoryManager : MonoBehaviour
             itemInstances.Add(inst);
         }
 
+        NotifyInventoryChanged();
         return inst;
     }
 
@@ -78,6 +86,8 @@ public class InventoryManager : MonoBehaviour
                 {
                     itemInstances.Remove(itemInstance);
                 }
+
+                NotifyInventoryChanged();
                 return true;
             }
             else
@@ -117,5 +127,15 @@ public class InventoryManager : MonoBehaviour
     public bool HasItem(ItemsData itemData, int quantity = 1)
     {
         return GetQuantity(itemData) >= Mathf.Max(0, quantity);
+    }
+
+    public IReadOnlyList<ItemsInstance> GetTrackedItems()
+    {
+        return itemInstances;
+    }
+
+    void NotifyInventoryChanged()
+    {
+        OnInventoryChanged?.Invoke();
     }
 }
