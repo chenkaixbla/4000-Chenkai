@@ -8,6 +8,7 @@ public class InventoryManager : MonoBehaviour
     public event System.Action OnInventoryChanged;
 
     public List<ItemsInstance> itemInstances = new();
+    int _addedOrderCounter = 0;
     [PropertyDropdown] public List<ItemsData> allItems = new();   // List of all items in the game, used for reference when adding items to the inventory
     void Awake()
     {
@@ -47,6 +48,7 @@ public class InventoryManager : MonoBehaviour
         {
             inst = new ItemsInstance();
             inst.SetItem(itemData, quantity);
+            inst.addedOrder = _addedOrderCounter++;
             itemInstances.Add(inst);
         }
 

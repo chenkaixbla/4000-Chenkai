@@ -6,11 +6,17 @@ using UnityEngine.UI;
 
 public class ShopManager : MonoBehaviour
 {
+    [Title("Dependencies")]
     public InventoryManager inventory;
     public CurrencyManager currency;
+    public InventoryPageController inventoryPageController;
     public CardViewManager cardViewManager;
     public int shopViewIndex = 1;
+
+    [Title("UI")]
     public Button shopButton;
+        
+    // Quantity prompt 
     public GameObject quantityPromptRoot;
     public TMP_Text quantityItemText;
     public TMP_InputField quantityField; // Integer input field for quantity (Format all input to 1,000,000 format)
@@ -19,10 +25,11 @@ public class ShopManager : MonoBehaviour
     public Button confirmButton;
     public Button cancelButton;
 
-    [Line]
+    [Title("Configuration")]
 
     public List<ItemsData> itemsForSale = new();
     [Min(0f)] public float refreshInterval = 0.25f;
+
 
     ScrollViewData viewData;
     readonly List<ShopCard> spawnedCards = new();
@@ -33,6 +40,12 @@ public class ShopManager : MonoBehaviour
 
     void Start()
     {
+        if (inventoryPageController != null)
+        {
+            inventoryPageController.SellRequested -= HandleInventorySellRequested;
+            inventoryPageController.SellRequested += HandleInventorySellRequested;
+        }
+
         viewData = cardViewManager != null ? cardViewManager.GetScrollViewData(shopViewIndex) : null;
         if (shopButton != null)
         {
@@ -63,6 +76,11 @@ public class ShopManager : MonoBehaviour
 
     void OnDestroy()
     {
+        if (inventoryPageController != null)
+        {
+            inventoryPageController.SellRequested -= HandleInventorySellRequested;
+        }
+
         if (shopButton != null)
         {
             shopButton.onClick.RemoveListener(OnShopButtonClick);
@@ -92,6 +110,16 @@ public class ShopManager : MonoBehaviour
         {
             quantityField.onValueChanged.RemoveListener(HandleQuantityFieldValueChanged);
         }
+    }
+
+    void HandleInventorySellRequested(ItemsData itemData, int quantity)
+    {
+        if (itemData == null)
+        {
+            return;
+        }
+
+        SellItem(itemData.itemID, quantity);
     }
 
     void OnShopButtonClick()

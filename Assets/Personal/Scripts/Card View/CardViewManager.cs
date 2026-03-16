@@ -14,9 +14,8 @@ public class ScrollViewData
 public class CardViewManager : MonoBehaviour
 {
     public int defaultViewIndex = 0;
+    [ReadOnly] public int currentViewIndex = -1;
     public List<ScrollViewData> scrollViews = new();
-
-    public ScrollViewData currentView { get; private set; }
 
     void Start()
     {
@@ -35,16 +34,33 @@ public class CardViewManager : MonoBehaviour
         }
     }
 
-    public void ShowScrollView(int index)
+    public void ShowScrollView(int index, bool hideOthers = true)
     {
-        for (int i = 0; i < scrollViews.Count; i++)
-        {
-            scrollViews[i].scrollView.SetActive(i == index);
-        }
+        currentViewIndex = index;
 
-        if (index >= 0 && index < scrollViews.Count)
+        if(hideOthers)
         {
-            currentView = scrollViews[index];
+            for (int i = 0; i < scrollViews.Count; i++)
+            {
+                scrollViews[i].scrollView.SetActive(i == index);
+            }
+        }
+        else
+        {
+            ScrollViewData data = GetScrollViewData(index);
+            if (data != null)
+            {
+                data.scrollView.SetActive(true);
+            }
+        }
+    }
+
+    public void HideScrollView(int index)
+    {
+        ScrollViewData data = GetScrollViewData(index);
+        if (data != null)
+        {
+            data.scrollView.SetActive(false);
         }
     }
 }

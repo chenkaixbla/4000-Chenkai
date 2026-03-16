@@ -1,17 +1,20 @@
+using EditorAttributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ItemCard : MonoBehaviour
 {
-    [Header("Data")]
+    [Title("Data")]
     public ItemsData itemData;
 
-    [Header("Card UI")]
+    [Title("Card UI")]
     public Button selectButton;
     public TMP_Text displayNameText;
     public TMP_Text quantityText;
     public Image iconImage;
+    public GameObject unselectedOverlay;
+    public GameObject selectedOverlay;
 
     System.Action<ItemsData> onSelected;
 
@@ -62,6 +65,18 @@ public class ItemCard : MonoBehaviour
             iconImage.sprite = itemData.icon;
             iconImage.enabled = itemData.icon != null;
         }
+    }
+
+    public void SetSellMode(bool active)
+    {
+        if (unselectedOverlay != null) unselectedOverlay.SetActive(active);
+        if (selectedOverlay != null) selectedOverlay.SetActive(false);
+    }
+
+    public void SetSellSelected(bool selected)
+    {
+        if (unselectedOverlay != null) unselectedOverlay.SetActive(!selected);
+        if (selectedOverlay != null) selectedOverlay.SetActive(selected);
     }
 
     void HandleSelected()

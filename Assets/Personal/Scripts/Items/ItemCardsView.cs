@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class ItemCardsView : MonoBehaviour
 {
+    public InventoryPageController inventoryPage;
     public Transform cardContainer;
     public ItemCard itemCardPrefab;
 
@@ -38,6 +39,21 @@ public class ItemCardsView : MonoBehaviour
         }
     }
 
+    public void FilterByCategory(Catalog_ItemType category)
+    {
+        for (int i = 0; i < activeCards.Count; i++)
+        {
+            ItemCard card = activeCards[i];
+            if (card == null)
+            {
+                continue;
+            }
+
+            bool shouldShow = card.itemData != null && (card.itemData.itemType == category || category == Catalog_ItemType.None);
+            card.gameObject.SetActive(shouldShow);
+        }
+    }
+
     ItemCard GetCardFromPool()
     {
         while (pooledCards.Count > 0)
@@ -51,14 +67,33 @@ public class ItemCardsView : MonoBehaviour
                 continue;
             }
 
-            card.gameObject.SetActive(true);
+            card.gameObject.SetActive(inventoryPage != null && 
+                            (inventoryPage.currentCategory == Catalog_ItemType.None || 
+                            inventoryPage.currentCategory == card.itemData.itemType));
             return card;
         }
 
         return itemCardPrefab != null ? Instantiate(itemCardPrefab) : null;
     }
 
-    void ClearActiveCards()
+        public IReadOnlyList<ItemCard> GetActiveCards() => activeCards;
+
+        public void ApplySellMode(bool active, HashSet<ItemsData> selectedItems = null)
+        {
+            for (int i = 0; i < activeCards.Count; i++)
+            {
+                ItemCard card = activeCards[i];
+                if (card == null) continue;
+
+                card.SetSellMode(active);
+                if (active && selectedItems != null && card.itemData != null && selectedItems.Contains(card.itemData))
+                {
+                    card.SetSellSelected(true);
+                }
+            }
+        }
+
+        void ClearActiveCards()
     {
         for (int i = activeCards.Count - 1; i >= 0; i--)
         {
@@ -74,4 +109,6 @@ public class ItemCardsView : MonoBehaviour
 
         activeCards.Clear();
     }
+
+
 }

@@ -1,14 +1,15 @@
+using EditorAttributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ItemDetailPage : MonoBehaviour
 {
-    [Header("Page")]
+    [Title("Page")]
     public GameObject pageRoot;
     public Button closeButton;
 
-    [Header("UI")]
+    [Title("UI")]
     public TMP_Text displayNameText;
     public TMP_Text quantityText;
     public TMP_Text priceText;
@@ -21,17 +22,8 @@ public class ItemDetailPage : MonoBehaviour
 
     void Awake()
     {
-        BindCloseButton();
-    }
-
-    void OnEnable()
-    {
-        BindCloseButton();
-    }
-
-    void OnDisable()
-    {
-        UnbindCloseButton();
+        closeButton.onClick.RemoveListener(HandleCloseClicked);
+        closeButton.onClick.AddListener(HandleCloseClicked);
     }
 
     public void Display(ItemsData itemData, int quantity)
@@ -56,7 +48,7 @@ public class ItemDetailPage : MonoBehaviour
 
         if (priceText != null)
         {
-            priceText.text = $"Price: {itemData.price}";
+            priceText.text = $"{itemData.price}";
         }
 
         if (descriptionText != null)
@@ -77,16 +69,9 @@ public class ItemDetailPage : MonoBehaviour
         ApplyEmptyState();
     }
 
-    public void SetPageVisible(bool isVisible)
-    {
-        if (pageRoot != null)
-        {
-            pageRoot.SetActive(isVisible);
-        }
-    }
-
     void HandleCloseClicked()
     {
+        pageRoot.SetActive(false);
         CloseRequested?.Invoke();
     }
 
@@ -116,23 +101,6 @@ public class ItemDetailPage : MonoBehaviour
         {
             iconImage.sprite = null;
             iconImage.enabled = false;
-        }
-    }
-
-    void BindCloseButton()
-    {
-        if (closeButton != null)
-        {
-            closeButton.onClick.RemoveListener(HandleCloseClicked);
-            closeButton.onClick.AddListener(HandleCloseClicked);
-        }
-    }
-
-    void UnbindCloseButton()
-    {
-        if (closeButton != null)
-        {
-            closeButton.onClick.RemoveListener(HandleCloseClicked);
         }
     }
 }

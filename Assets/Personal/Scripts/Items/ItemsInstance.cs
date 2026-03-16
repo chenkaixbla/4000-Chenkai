@@ -5,6 +5,7 @@ public class ItemsInstance
 {
     public ItemsData itemData;
     public int quantity;
+    public int addedOrder;
 
     public void SetItem(ItemsData data, int qty = 1)
     {
