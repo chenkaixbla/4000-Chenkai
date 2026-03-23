@@ -14,7 +14,7 @@ public class IdleFinishActionEntry
 public class IdleData : ScriptableObject
 {
     [Title("General")]
-    [AssetPreview] public Sprite icon;
+    [AssetPreview(previewHeight:96f)] public Sprite icon;
     public string guid;
     public string displayName;
     public float interval;

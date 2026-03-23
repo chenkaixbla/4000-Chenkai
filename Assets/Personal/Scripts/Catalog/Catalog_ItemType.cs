@@ -4,5 +4,7 @@ public enum Catalog_ItemType
     Resource,
     Weapon,
     Armor,
-    Food
+    Food,
+    Potion,
+    Utility
 }
