@@ -234,18 +234,6 @@ public partial class CombatManager : MonoBehaviour
         NotifyStateChanged();
     }
 
-    public void SetCombatStyle(CombatStyle style)
-    {
-        if (profile.activeStyle == style)
-        {
-            return;
-        }
-
-        profile.activeStyle = style;
-        AddCombatLog($"Style changed to {GetStyleName(style)}.");
-        NotifyStateChanged();
-    }
-
     public int GetMonsterKillCount(MonsterData monsterData)
     {
         if (monsterData == null || string.IsNullOrWhiteSpace(monsterData.guid))

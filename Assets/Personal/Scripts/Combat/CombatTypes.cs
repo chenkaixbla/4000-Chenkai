@@ -10,14 +10,6 @@ public enum CombatAttackType
     Magic
 }
 
-public enum CombatStyle
-{
-    MeleeAccurate,
-    MeleeAggressive,
-    MeleeDefensive,
-    Ranged
-}
-
 public enum CombatEquipSlot
 {
     None,
@@ -510,7 +502,6 @@ public class CombatProfile
     public CombatSkillProgress strength = new();
     public CombatSkillProgress defence = new();
     public CombatSkillProgress range = new();
-    public CombatStyle activeStyle = CombatStyle.MeleeAccurate;
     public EquipmentLoadout loadout = new();
     public int currentHp;
     public float foodCooldownEndsAt;

@@ -12,7 +12,8 @@ public partial class CombatManager
     {
         CombatStatBonuses bonuses = GetCombinedCombatBonuses();
         int effectiveLevel = GetEffectiveAccuracyLevel();
-        int attackBonus = profile.activeStyle == CombatStyle.Ranged ? bonuses.rangedAccuracyBonus : bonuses.meleeAccuracyBonus;
+        CombatAttackType attackType = GetPlayerAttackType();
+        int attackBonus = attackType == CombatAttackType.Ranged ? bonuses.rangedAccuracyBonus : bonuses.meleeAccuracyBonus;
         return CombatMath.GetAttackRoll(effectiveLevel, attackBonus);
     }
 
@@ -20,7 +21,8 @@ public partial class CombatManager
     {
         CombatStatBonuses bonuses = GetCombinedCombatBonuses();
         int effectiveLevel = GetEffectiveStrengthLevel();
-        int strengthBonus = profile.activeStyle == CombatStyle.Ranged ? bonuses.rangedStrengthBonus : bonuses.meleeStrengthBonus;
+        CombatAttackType attackType = GetPlayerAttackType();
+        int strengthBonus = attackType == CombatAttackType.Ranged ? bonuses.rangedStrengthBonus : bonuses.meleeStrengthBonus;
         return CombatMath.GetMaxHit(effectiveLevel, strengthBonus);
     }
 
@@ -64,21 +66,13 @@ public partial class CombatManager
         ItemsData weaponItem = profile.loadout != null ? profile.loadout.weapon : null;
         CombatItemDefinition weaponData = weaponItem != null ? weaponItem.combatData : null;
 
-        if (profile.activeStyle == CombatStyle.Ranged)
+        if (weaponData != null &&
+            weaponData.itemRole == CombatItemRole.Equipment &&
+            weaponData.weaponAttackType == CombatAttackType.Ranged &&
+            weaponData.requiresAmmo &&
+            profile.loadout.ammo == null)
         {
-            if (weaponData == null || weaponData.itemRole != CombatItemRole.Equipment || weaponData.weaponAttackType != CombatAttackType.Ranged)
-            {
-                return "Equip a ranged weapon.";
-            }
-
-            if (weaponData.requiresAmmo && profile.loadout.ammo == null)
-            {
-                return "Equip ammo.";
-            }
-        }
-        else if (weaponData != null && weaponData.itemRole == CombatItemRole.Equipment && weaponData.weaponAttackType == CombatAttackType.Ranged)
-        {
-            return "Switch to Ranged style or equip a melee weapon.";
+            return "Equip ammo.";
         }
 
         return null;
@@ -86,7 +80,14 @@ public partial class CombatManager
 
     CombatAttackType GetPlayerAttackType()
     {
-        return profile.activeStyle == CombatStyle.Ranged ? CombatAttackType.Ranged : CombatAttackType.Melee;
+        ItemsData weaponItem = profile.loadout != null ? profile.loadout.weapon : null;
+        CombatItemDefinition weaponData = weaponItem != null ? weaponItem.combatData : null;
+        if (weaponData != null && weaponData.itemRole == CombatItemRole.Equipment)
+        {
+            return weaponData.weaponAttackType;
+        }
+
+        return CombatAttackType.Melee;
     }
 
     CombatStatBonuses GetCombinedCombatBonuses()
@@ -120,42 +121,29 @@ public partial class CombatManager
 
     int GetEffectiveAccuracyLevel()
     {
-        int baseLevel = profile.activeStyle == CombatStyle.Ranged ? profile.range.currentLevel : profile.attack.currentLevel;
-        int stanceBonus = profile.activeStyle switch
-        {
-            CombatStyle.MeleeAccurate => 3,
-            CombatStyle.Ranged => 3,
-            _ => 0
-        };
-
-        int potionBonus = profile.activeStyle == CombatStyle.Ranged
+        CombatAttackType attackType = GetPlayerAttackType();
+        int baseLevel = attackType == CombatAttackType.Ranged ? profile.range.currentLevel : profile.attack.currentLevel;
+        int potionBonus = attackType == CombatAttackType.Ranged
             ? GetPotionLevelBonus(CombatSkillType.Range)
             : GetPotionLevelBonus(CombatSkillType.Attack);
 
-        return baseLevel + stanceBonus + potionBonus + 8;
+        return baseLevel + potionBonus + 8;
     }
 
     int GetEffectiveStrengthLevel()
     {
-        int baseLevel = profile.activeStyle == CombatStyle.Ranged ? profile.range.currentLevel : profile.strength.currentLevel;
-        int stanceBonus = profile.activeStyle switch
-        {
-            CombatStyle.MeleeAggressive => 3,
-            CombatStyle.Ranged => 3,
-            _ => 0
-        };
-
-        int potionBonus = profile.activeStyle == CombatStyle.Ranged
+        CombatAttackType attackType = GetPlayerAttackType();
+        int baseLevel = attackType == CombatAttackType.Ranged ? profile.range.currentLevel : profile.strength.currentLevel;
+        int potionBonus = attackType == CombatAttackType.Ranged
             ? GetPotionLevelBonus(CombatSkillType.Range)
             : GetPotionLevelBonus(CombatSkillType.Strength);
 
-        return baseLevel + stanceBonus + potionBonus + 8;
+        return baseLevel + potionBonus + 8;
     }
 
     int GetEffectiveDefenceLevel()
     {
-        int stanceBonus = profile.activeStyle == CombatStyle.MeleeDefensive ? 3 : 0;
-        return profile.defence.currentLevel + stanceBonus + GetPotionLevelBonus(CombatSkillType.Defence) + 8;
+        return profile.defence.currentLevel + GetPotionLevelBonus(CombatSkillType.Defence) + 8;
     }
 
     int GetPotionLevelBonus(CombatSkillType skillType)
@@ -178,18 +166,6 @@ public partial class CombatManager
             CombatSkillType.Defence => potionEffect.defenceLevelBonus,
             CombatSkillType.Range => potionEffect.rangeLevelBonus,
             _ => 0
-        };
-    }
-
-    static string GetStyleName(CombatStyle style)
-    {
-        return style switch
-        {
-            CombatStyle.MeleeAccurate => "Melee Accurate",
-            CombatStyle.MeleeAggressive => "Melee Aggressive",
-            CombatStyle.MeleeDefensive => "Melee Defensive",
-            CombatStyle.Ranged => "Ranged",
-            _ => style.ToString()
         };
     }
 }

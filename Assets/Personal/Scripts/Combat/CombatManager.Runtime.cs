@@ -123,24 +123,22 @@ public partial class CombatManager
         }
 
         int previousMaxHp = GetPlayerMaxHp();
-        int styleXp = damage * 4;
+        int combatXp = damage * 4;
         int hitpointsXp = Mathf.FloorToInt(damage * 1.3f);
+        CombatAttackType attackType = GetPlayerAttackType();
 
-        if (profile.activeStyle == CombatStyle.Ranged)
+        if (attackType == CombatAttackType.Ranged)
         {
-            profile.range.AddXP(styleXp);
+            profile.range.AddXP(combatXp);
         }
-        else if (profile.activeStyle == CombatStyle.MeleeAccurate)
+        else
         {
-            profile.attack.AddXP(styleXp);
-        }
-        else if (profile.activeStyle == CombatStyle.MeleeAggressive)
-        {
-            profile.strength.AddXP(styleXp);
-        }
-        else if (profile.activeStyle == CombatStyle.MeleeDefensive)
-        {
-            profile.defence.AddXP(styleXp);
+            // Without combat styles, split melee XP across attack/strength/defence while preserving total XP.
+            int splitXp = combatXp / 3;
+            int remainder = combatXp % 3;
+            profile.attack.AddXP(splitXp + (remainder > 0 ? 1 : 0));
+            profile.strength.AddXP(splitXp + (remainder > 1 ? 1 : 0));
+            profile.defence.AddXP(splitXp);
         }
 
         profile.hitpoints.AddXP(hitpointsXp);

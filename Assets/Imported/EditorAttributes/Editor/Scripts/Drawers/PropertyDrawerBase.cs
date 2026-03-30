@@ -54,10 +54,9 @@ namespace EditorAttributes.Editor
         /// <returns>The binded property field</returns>
         public static PropertyField CreatePropertyField(SerializedProperty property, string label = "")
         {
-            PropertyField propertyField = new(property, string.IsNullOrWhiteSpace(label) ? property.displayName : label);
-            propertyField.BindProperty(property.serializedObject);
-
-            return propertyField;
+            // Unity automatically binds the inspector root returned by CreateInspectorGUI.
+            // Manually binding each property field again can produce unstable binding trees in newer versions.
+            return new PropertyField(property, string.IsNullOrWhiteSpace(label) ? property.displayName : label);
         }
 
         /// <summary>

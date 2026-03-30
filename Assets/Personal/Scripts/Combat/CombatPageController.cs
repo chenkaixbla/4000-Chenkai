@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using EditorAttributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,12 +11,6 @@ public partial class CombatPageController : MonoBehaviour
         public Button button;
         public Image background;
         public TMP_Text label;
-    }
-
-    sealed class StyleButtonBinding
-    {
-        public CombatStyle style;
-        public ButtonRefs refs;
     }
 
     sealed class SlotButtonBinding
@@ -30,26 +25,73 @@ public partial class CombatPageController : MonoBehaviour
     CombatEquipSlot selectedSlot = CombatEquipSlot.Weapon;
     int selectedUtilityIndex = -1;
 
-    readonly Dictionary<MonsterData, ButtonRefs> monsterButtons = new();
-    readonly List<StyleButtonBinding> styleButtons = new();
+    readonly Dictionary<MonsterData, MonsterSelectionButtonElement> monsterButtons = new();
     readonly List<SlotButtonBinding> slotButtons = new();
 
-    RectTransform rootRect;
-    RectTransform monsterListContent;
-    RectTransform selectionListContent;
-    TMP_Text playerHpText;
-    Image playerHpFill;
-    TMP_Text playerDerivedText;
-    TMP_Text playerTimerText;
-    TMP_Text monsterNameText;
-    TMP_Text monsterHpText;
-    Image monsterHpFill;
-    TMP_Text monsterStatsText;
-    TMP_Text monsterTimerText;
-    TMP_Text statusText;
-    TMP_Text effectStatusText;
-    TMP_Text logText;
-    TMP_Text selectionTitleText;
+    [Title("UI - Monster List Spawning")]
+    // Spawn setup for the monster list (content parent + runtime button element prefab).
+    [SerializeField] CombatSpawnListReferences monsterListSpawn = new();
+
+    [Title("UI - Item Selection Spawning")]
+    // Spawn setup for the slot-item selection list (content parent + runtime button element prefab).
+    [SerializeField] CombatSpawnListReferences selectionListSpawn = new();
+
+    [Title("UI - Player")]
+    // Label displaying current and max player HP.
+    [SerializeField] TMP_Text playerHpText;
+
+    // Filled image used as the player's HP bar.
+    [SerializeField] Image playerHpFill;
+
+    // Multiline combat stat summary for the player.
+    [SerializeField] TMP_Text playerDerivedText;
+
+    // Timers for attack cooldown and consumable cooldown.
+    [SerializeField] TMP_Text playerTimerText;
+
+    [Title("UI - Monster")]
+    // Label for currently selected or active monster name.
+    [SerializeField] TMP_Text monsterNameText;
+
+    // Label displaying current and max monster HP.
+    [SerializeField] TMP_Text monsterHpText;
+
+    // Filled image used as the monster HP bar.
+    [SerializeField] Image monsterHpFill;
+
+    // Multiline monster stat summary.
+    [SerializeField] TMP_Text monsterStatsText;
+
+    // Timer label for monster attack or respawn countdown.
+    [SerializeField] TMP_Text monsterTimerText;
+
+    [Title("UI - Status And Log")]
+    // Overall encounter state text (idle, combat, respawning, dead).
+    [SerializeField] TMP_Text statusText;
+
+    // Active timed effects text (potion/debuff states).
+    [SerializeField] TMP_Text effectStatusText;
+
+    // Scrolling combat log text output.
+    [SerializeField] TMP_Text logText;
+
+    // Header text above the right-hand selection list.
+    [SerializeField] TMP_Text selectionTitleText;
+
+    [Title("UI - Action Buttons")]
+    // Uses equipped food when available.
+    [SerializeField] Button foodButton;
+
+    // Uses equipped potion when available.
+    [SerializeField] Button potionButton;
+
+    // Stops combat and clears current encounter state.
+    [SerializeField] Button stopButton;
+
+    [Title("UI - Slot Buttons")]
+    // Slot button elements authored in the scene (each element knows its slot/index and UI refs).
+    [SerializeField] List<CombatSlotButtonElement> slotButtonElements = new();
+
     ButtonRefs foodButtonRefs;
     ButtonRefs potionButtonRefs;
     ButtonRefs stopButtonRefs;
@@ -113,7 +155,6 @@ public partial class CombatPageController : MonoBehaviour
         }
 
         RebuildMonsterList();
-        RefreshStyleButtons();
         RefreshSlotButtons();
         RebuildSelectionList();
         RefreshDynamicState();
@@ -132,7 +173,6 @@ public partial class CombatPageController : MonoBehaviour
 
         string blockedReason = manager.GetPlayerAttackBlockedReason();
         playerDerivedText.text =
-            $"Style: {GetStyleDisplayName(manager.Profile.activeStyle)}\n" +
             $"Accuracy: {manager.GetPlayerAccuracyRating():N0}\n" +
             $"Max Hit: {manager.GetPlayerMaxHit()}\n" +
             $"Evasion (M/R/M): {manager.GetPlayerEvasionRating(CombatAttackType.Melee):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Ranged):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Magic):N0}\n" +
@@ -192,9 +232,20 @@ public partial class CombatPageController : MonoBehaviour
             $"Potion: {(manager.IsPotionActive() ? $"{manager.Profile.activePotionItem.displayName} ({manager.GetPotionRemainingSeconds():0.0}s)" : "Inactive")}\n" +
             $"Death Debuff: {(manager.IsDeathDebuffActive() ? $"{manager.GetDeathDebuffRemainingSeconds():0.0}s remaining" : "Inactive")}";
 
-        foodButtonRefs.button.interactable = manager.CanUseFood();
-        potionButtonRefs.button.interactable = manager.CanUsePotion();
-        stopButtonRefs.button.interactable = manager.IsCombatRunning || manager.IsRespawning;
+        if (foodButtonRefs?.button != null)
+        {
+            foodButtonRefs.button.interactable = manager.CanUseFood();
+        }
+
+        if (potionButtonRefs?.button != null)
+        {
+            potionButtonRefs.button.interactable = manager.CanUsePotion();
+        }
+
+        if (stopButtonRefs?.button != null)
+        {
+            stopButtonRefs.button.interactable = manager.IsCombatRunning || manager.IsRespawning;
+        }
 
         IReadOnlyList<string> combatLog = manager.CombatLog;
         logText.text = combatLog.Count > 0 ? string.Join("\n", combatLog) : "Combat log is empty.";
@@ -202,12 +253,12 @@ public partial class CombatPageController : MonoBehaviour
 
     void RebuildMonsterList()
     {
-        ClearChildren(monsterListContent);
+        ClearChildren(monsterListSpawn.Content);
         monsterButtons.Clear();
 
         if (manager.MonsterDatas == null || manager.MonsterDatas.Count == 0)
         {
-            CreateLabel(monsterListContent, "No monsters assigned.", 22, TextAlignmentOptions.Center);
+            CreateSelectionInfoButton(monsterListSpawn, "No monsters assigned.", 58f);
             return;
         }
 
@@ -220,10 +271,15 @@ public partial class CombatPageController : MonoBehaviour
             }
 
             MonsterData capturedMonster = monsterData;
-            ButtonRefs refs = CreateButton(monsterListContent, string.Empty, () => manager.SelectMonster(capturedMonster), 58);
-            refs.label.alignment = TextAlignmentOptions.MidlineLeft;
-            refs.label.margin = new Vector4(16f, 0f, 16f, 0f);
-            monsterButtons[capturedMonster] = refs;
+            MonsterSelectionButtonElement buttonElement = CreateSelectionButton(monsterListSpawn, string.Empty, () => manager.SelectMonster(capturedMonster), 58f);
+            if (buttonElement == null)
+            {
+                continue;
+            }
+
+            buttonElement.SetLabelAlignment(TextAlignmentOptions.MidlineLeft);
+            buttonElement.SetLabelMargin(new Vector4(16f, 0f, 16f, 0f));
+            monsterButtons[capturedMonster] = buttonElement;
         }
 
         RefreshMonsterButtonStates();
@@ -231,24 +287,15 @@ public partial class CombatPageController : MonoBehaviour
 
     void RefreshMonsterButtonStates()
     {
-        foreach (KeyValuePair<MonsterData, ButtonRefs> entry in monsterButtons)
+        foreach (KeyValuePair<MonsterData, MonsterSelectionButtonElement> entry in monsterButtons)
         {
             MonsterData monsterData = entry.Key;
-            ButtonRefs refs = entry.Value;
+            MonsterSelectionButtonElement buttonElement = entry.Value;
             bool isSelected = manager.SelectedMonster == monsterData;
             int defeats = manager.GetMonsterKillCount(monsterData);
-            refs.label.text = $"{monsterData.displayName}\nDefeats: {defeats}";
-            refs.background.color = isSelected ? new Color(0.32f, 0.42f, 0.18f, 0.95f) : new Color(0.15f, 0.15f, 0.18f, 0.95f);
-        }
-    }
 
-    void RefreshStyleButtons()
-    {
-        for (int i = 0; i < styleButtons.Count; i++)
-        {
-            StyleButtonBinding binding = styleButtons[i];
-            bool isActive = manager.Profile.activeStyle == binding.style;
-            binding.refs.background.color = isActive ? new Color(0.18f, 0.42f, 0.52f, 0.95f) : new Color(0.16f, 0.16f, 0.16f, 0.95f);
+            buttonElement.SetLabel($"{monsterData.displayName}\nDefeats: {defeats}");
+            buttonElement.SetBackgroundColor(isSelected ? new Color(0.32f, 0.42f, 0.18f, 0.95f) : new Color(0.15f, 0.15f, 0.18f, 0.95f));
         }
     }
 
@@ -260,30 +307,37 @@ public partial class CombatPageController : MonoBehaviour
             ItemsData equippedItem = manager.GetEquippedItem(binding.slot, binding.utilityIndex);
             int quantity = equippedItem != null && manager.inventory != null ? manager.inventory.GetQuantity(equippedItem) : 0;
             string itemLabel = equippedItem != null ? $"{equippedItem.displayName} x{quantity}" : "Empty";
-            binding.refs.label.text = $"{CombatManager.GetSlotDisplayName(binding.slot, binding.utilityIndex)}\n{itemLabel}";
+
+            if (binding.refs.label != null)
+            {
+                binding.refs.label.text = $"{CombatManager.GetSlotDisplayName(binding.slot, binding.utilityIndex)}\n{itemLabel}";
+            }
 
             bool isSelected = selectedSlot == binding.slot && selectedUtilityIndex == binding.utilityIndex;
-            binding.refs.background.color = isSelected ? new Color(0.42f, 0.30f, 0.14f, 0.95f) : new Color(0.16f, 0.16f, 0.16f, 0.95f);
+            if (binding.refs.background != null)
+            {
+                binding.refs.background.color = isSelected ? new Color(0.42f, 0.30f, 0.14f, 0.95f) : new Color(0.16f, 0.16f, 0.16f, 0.95f);
+            }
         }
     }
 
     void RebuildSelectionList()
     {
-        ClearChildren(selectionListContent);
+        ClearChildren(selectionListSpawn.Content);
         selectionTitleText.text = $"Selection: {CombatManager.GetSlotDisplayName(selectedSlot, selectedUtilityIndex)}";
 
         if (selectedSlot == CombatEquipSlot.None)
         {
-            CreateLabel(selectionListContent, "Select a slot to equip items.", 22, TextAlignmentOptions.Center);
+            CreateSelectionInfoButton(selectionListSpawn, "Select a slot to equip items.", 54f);
             return;
         }
 
-        CreateButton(selectionListContent, "Unequip", () => manager.EquipItem(selectedSlot, null, selectedUtilityIndex), 54);
+        CreateSelectionButton(selectionListSpawn, "Unequip", () => manager.EquipItem(selectedSlot, null, selectedUtilityIndex), 54f);
 
         List<ItemsInstance> candidates = manager.GetCompatibleItemsForSlot(selectedSlot, selectedUtilityIndex);
         if (candidates.Count == 0)
         {
-            CreateLabel(selectionListContent, "No compatible inventory items.", 22, TextAlignmentOptions.Center);
+            CreateSelectionInfoButton(selectionListSpawn, "No compatible inventory items.", 54f);
             return;
         }
 
@@ -297,23 +351,12 @@ public partial class CombatPageController : MonoBehaviour
 
             ItemsData capturedItem = candidate.itemData;
             int capturedQuantity = candidate.quantity;
-            CreateButton(
-                selectionListContent,
+            CreateSelectionButton(
+                selectionListSpawn,
                 $"{capturedItem.displayName} x{capturedQuantity}",
                 () => manager.EquipItem(selectedSlot, capturedItem, selectedUtilityIndex),
-                54);
+                54f);
         }
     }
 
-    static string GetStyleDisplayName(CombatStyle style)
-    {
-        return style switch
-        {
-            CombatStyle.MeleeAccurate => "Melee Accurate",
-            CombatStyle.MeleeAggressive => "Melee Aggressive",
-            CombatStyle.MeleeDefensive => "Melee Defensive",
-            CombatStyle.Ranged => "Ranged",
-            _ => style.ToString()
-        };
-    }
 }
