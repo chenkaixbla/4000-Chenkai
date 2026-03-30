@@ -19,12 +19,19 @@ public class FinishAction_GiveItem : FinishAction
 {
     public ItemsData itemsData;
     public int quantity;
+    [Range(0f, 1f)] public float baseDropChance = 1f;
 
     public override IdleFinishActionType ActionType => IdleFinishActionType.GiveItem;
 
     public override void Apply(IdleInstance idleInstance)
     {
         if (itemsData == null || quantity <= 0)
+        {
+            return;
+        }
+
+        float effectiveDropChance = Mathf.Clamp01(baseDropChance * CombatManager.GetIdleItemDropChanceMultiplier());
+        if (UnityEngine.Random.value > effectiveDropChance)
         {
             return;
         }

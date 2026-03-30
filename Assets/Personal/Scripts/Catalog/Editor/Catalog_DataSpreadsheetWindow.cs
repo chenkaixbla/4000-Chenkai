@@ -18,7 +18,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         Resource = (int)Catalog_ItemType.Resource,
         Weapon = (int)Catalog_ItemType.Weapon,
         Armor = (int)Catalog_ItemType.Armor,
-        Food = (int)Catalog_ItemType.Food
+        Food = (int)Catalog_ItemType.Food,
+        Potion = (int)Catalog_ItemType.Potion,
+        Utility = (int)Catalog_ItemType.Utility
     }
 
     private enum JobIdleRowAction
@@ -33,7 +35,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private const float ObjectCellWidth = 220f;
     private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 72f, 24f };
     private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 300f, 46f, 24f };
-    private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 24f };
+    private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 150f, 24f };
     private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 75f, 75f, 85f, 220f, 200f, 24f };
 
     private readonly List<JobData> _jobRows = new();
@@ -45,6 +47,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private readonly HashSet<int> _selectedIdleAssetIds = new();
     private readonly Dictionary<int, HashSet<int>> _selectedIdleIds = new();
     private readonly HashSet<int> _expandedJobRows = new();
+    private readonly HashSet<int> _expandedItemRows = new();
     private readonly Dictionary<int, HashSet<int>> _expandedJobIdleFinishActionRows = new();
     private readonly HashSet<int> _expandedIdleAssetFinishActionRows = new();
 
@@ -734,6 +737,12 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (removeIndex >= 0)
         {
+            ItemsData removedItem = _itemRows[removeIndex];
+            if (removedItem != null)
+            {
+                _expandedItemRows.Remove(removedItem.GetInstanceID());
+            }
+
             _itemRows.RemoveAt(removeIndex);
         }
     }
@@ -749,7 +758,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("Description", widths[5]);
         DrawHeaderCell("Price", widths[6]);
         DrawHeaderCell("Icon", widths[7]);
-        DrawHeaderCell("X", widths[8]);
+        DrawHeaderCell("Details", widths[8]);
+        DrawHeaderCell("X", widths[9]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -795,6 +805,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
                     _itemRows.RemoveAll(itemData => itemData == null || deletedIds.Contains(itemData.GetInstanceID()));
                     _selectedItemIds.ExceptWith(deletedIds);
+                    _expandedItemRows.ExceptWith(deletedIds);
                 }
             }
         }
@@ -826,6 +837,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (row != null && changedRow != row)
             {
                 _selectedItemIds.Remove(rowId);
+                _expandedItemRows.Remove(rowId);
             }
 
             _itemRows[rowIndex] = changedRow;
@@ -835,10 +847,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (row == null)
         {
-            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6] + widths[7];
+            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6] + widths[7] + widths[8];
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[8]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[9]));
             EditorGUILayout.EndHorizontal();
+            _expandedItemRows.Remove(rowId);
             return removeEmpty;
         }
 
@@ -852,14 +865,51 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawCompactProperty(serializedRow.FindProperty("price"), widths[6]);
         DrawCompactProperty(serializedRow.FindProperty("icon"), widths[7]);
 
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[8]));
+        SerializedProperty itemTypeProperty = serializedRow.FindProperty("itemType");
+        SerializedProperty purchaseRequirementsProperty = serializedRow.FindProperty("purchaseRequirements");
+        SerializedProperty combatDataProperty = serializedRow.FindProperty("combatData");
+        bool isExpanded = _expandedItemRows.Contains(rowId);
+        EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[8]));
+        bool nextExpanded = isExpanded;
+        if (GUILayout.Button(isExpanded ? "v" : ">", EditorStyles.miniButton, GUILayout.Width(16f)))
+        {
+            nextExpanded = !isExpanded;
+        }
+
+        EditorGUILayout.LabelField(GetItemDetailsLabel(purchaseRequirementsProperty, combatDataProperty), GUILayout.Width(Mathf.Max(0f, widths[8] - 16f)));
+        EditorGUILayout.EndHorizontal();
+
+        if (nextExpanded != isExpanded)
+        {
+            SetSelection(_expandedItemRows, rowId, nextExpanded);
+        }
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<ItemsData> { row }, "ItemsData");
             if (removeRow)
             {
                 _selectedItemIds.Remove(rowId);
+                _expandedItemRows.Remove(rowId);
             }
+        }
+
+        bool drawItemDetails = _expandedItemRows.Contains(rowId);
+        if (drawItemDetails)
+        {
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(widths[0]);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawItemDetails(itemTypeProperty, purchaseRequirementsProperty, combatDataProperty);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        else
+        {
+            EditorGUILayout.EndHorizontal();
         }
 
         if (serializedRow.ApplyModifiedProperties())
@@ -867,7 +917,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             EditorUtility.SetDirty(row);
         }
 
-        EditorGUILayout.EndHorizontal();
         return removeRow;
     }
 
@@ -1161,6 +1210,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         LoadOrCreateSettings();
 
         HashSet<int> previousExpandedJobRows = new(_expandedJobRows);
+        HashSet<int> previousExpandedItemRows = new(_expandedItemRows);
         Dictionary<int, HashSet<int>> previousExpandedJobIdleFinishActionRows = new();
         foreach (KeyValuePair<int, HashSet<int>> pair in _expandedJobIdleFinishActionRows)
         {
@@ -1181,6 +1231,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _selectedIdleAssetIds.Clear();
         _selectedIdleIds.Clear();
         _expandedJobRows.Clear();
+        _expandedItemRows.Clear();
         _expandedJobIdleFinishActionRows.Clear();
         _expandedIdleAssetFinishActionRows.Clear();
         _pendingIdleAdds.Clear();
@@ -1203,6 +1254,23 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (jobsById.ContainsKey(expandedJobId))
             {
                 _expandedJobRows.Add(expandedJobId);
+            }
+        }
+
+        HashSet<int> validItemIds = new();
+        foreach (ItemsData itemData in _itemRows)
+        {
+            if (itemData != null)
+            {
+                validItemIds.Add(itemData.GetInstanceID());
+            }
+        }
+
+        foreach (int expandedItemId in previousExpandedItemRows)
+        {
+            if (validItemIds.Contains(expandedItemId))
+            {
+                _expandedItemRows.Add(expandedItemId);
             }
         }
 
@@ -1605,13 +1673,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
     }
 
-    private static void DrawConditionRulesDetails(SerializedProperty conditionsProperty)
+    private static void DrawConditionRulesDetails(
+        SerializedProperty conditionsProperty,
+        string label = "Start Conditions",
+        string unavailableMessage = "Start conditions list is not available.",
+        string addButtonLabel = "Add Condition")
     {
-        EditorGUILayout.LabelField("Start Conditions", EditorStyles.miniBoldLabel);
+        EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
 
         if (conditionsProperty == null || !conditionsProperty.isArray)
         {
-            EditorGUILayout.HelpBox("Start conditions list is not available.", MessageType.Info);
+            EditorGUILayout.HelpBox(unavailableMessage, MessageType.Info);
             return;
         }
 
@@ -1661,7 +1733,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             conditionsProperty.DeleteArrayElementAtIndex(removeIndex);
         }
 
-        if (GUILayout.Button("Add Condition", GUILayout.Width(104f)))
+        if (GUILayout.Button(addButtonLabel, GUILayout.Width(104f)))
         {
             int newIndex = conditionsProperty.arraySize;
             conditionsProperty.arraySize++;
@@ -1689,6 +1761,169 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawFinishActionsDetails(finishActionsProperty);
         EditorGUILayout.Space(4f);
         DrawConditionRulesDetails(conditionsProperty);
+    }
+
+    private static string GetItemDetailsLabel(SerializedProperty purchaseRequirementsProperty, SerializedProperty combatDataProperty)
+    {
+        int purchaseRequirementCount = purchaseRequirementsProperty != null && purchaseRequirementsProperty.isArray
+            ? purchaseRequirementsProperty.arraySize
+            : 0;
+
+        SerializedProperty itemRoleProperty = combatDataProperty != null
+            ? combatDataProperty.FindPropertyRelative("itemRole")
+            : null;
+        SerializedProperty equipmentSlotProperty = combatDataProperty != null
+            ? combatDataProperty.FindPropertyRelative("equipmentSlot")
+            : null;
+
+        string combatLabel = "No Combat";
+        if (itemRoleProperty != null && itemRoleProperty.propertyType == SerializedPropertyType.Enum)
+        {
+            CombatItemRole role = (CombatItemRole)itemRoleProperty.enumValueIndex;
+            if (role == CombatItemRole.None)
+            {
+                combatLabel = "No Combat";
+            }
+            else if (role == CombatItemRole.Equipment && equipmentSlotProperty != null && equipmentSlotProperty.propertyType == SerializedPropertyType.Enum)
+            {
+                combatLabel = equipmentSlotProperty.enumDisplayNames[equipmentSlotProperty.enumValueIndex];
+            }
+            else
+            {
+                combatLabel = itemRoleProperty.enumDisplayNames[itemRoleProperty.enumValueIndex];
+            }
+        }
+
+        return $"{purchaseRequirementCount} Shop Req / {combatLabel}";
+    }
+
+    private static void DrawItemDetails(SerializedProperty itemTypeProperty, SerializedProperty purchaseRequirementsProperty, SerializedProperty combatDataProperty)
+    {
+        DrawConditionRulesDetails(
+            purchaseRequirementsProperty,
+            "Purchase Requirements",
+            "Purchase requirements list is not available.",
+            "Add Requirement");
+
+        EditorGUILayout.Space(4f);
+        DrawCombatDataDetails(itemTypeProperty, combatDataProperty);
+    }
+
+    private static void DrawCombatDataDetails(SerializedProperty itemTypeProperty, SerializedProperty combatDataProperty)
+    {
+        EditorGUILayout.LabelField("Combat Data", EditorStyles.miniBoldLabel);
+
+        if (combatDataProperty == null)
+        {
+            EditorGUILayout.HelpBox("Combat data is not available.", MessageType.Info);
+            return;
+        }
+
+        SerializedProperty itemRoleProperty = combatDataProperty.FindPropertyRelative("itemRole");
+        SerializedProperty equipmentSlotProperty = combatDataProperty.FindPropertyRelative("equipmentSlot");
+        SerializedProperty weaponAttackTypeProperty = combatDataProperty.FindPropertyRelative("weaponAttackType");
+        SerializedProperty attackIntervalSecondsProperty = combatDataProperty.FindPropertyRelative("attackIntervalSeconds");
+        SerializedProperty requiresAmmoProperty = combatDataProperty.FindPropertyRelative("requiresAmmo");
+        SerializedProperty statBonusesProperty = combatDataProperty.FindPropertyRelative("statBonuses");
+        SerializedProperty foodEffectProperty = combatDataProperty.FindPropertyRelative("foodEffect");
+        SerializedProperty potionEffectProperty = combatDataProperty.FindPropertyRelative("potionEffect");
+        SerializedProperty equipRequirementsProperty = combatDataProperty.FindPropertyRelative("equipRequirements");
+
+        Catalog_ItemType itemType = Catalog_ItemType.None;
+        if (itemTypeProperty != null && itemTypeProperty.propertyType == SerializedPropertyType.Enum)
+        {
+            itemType = (Catalog_ItemType)itemTypeProperty.enumValueIndex;
+        }
+
+        if (itemRoleProperty == null || itemRoleProperty.propertyType != SerializedPropertyType.Enum)
+        {
+            EditorGUILayout.HelpBox("Combat role is not available.", MessageType.Info);
+            return;
+        }
+
+        CombatItemRole role = (CombatItemRole)itemRoleProperty.enumValueIndex;
+        EditorGUILayout.LabelField("Role", role.ToString());
+
+        if (role == CombatItemRole.None)
+        {
+            EditorGUILayout.HelpBox("This item type does not use combat data.", MessageType.Info);
+            return;
+        }
+
+        if (role == CombatItemRole.Equipment)
+        {
+            if (itemType == Catalog_ItemType.Weapon)
+            {
+                EditorGUILayout.LabelField("Slot", "Weapon");
+            }
+            else if (itemType == Catalog_ItemType.Utility)
+            {
+                EditorGUILayout.LabelField("Slot", "Utility");
+            }
+            else if (itemType == Catalog_ItemType.Armor && equipmentSlotProperty != null)
+            {
+                DrawPropertyWithoutAttributes(equipmentSlotProperty);
+            }
+
+            bool isWeaponItem = equipmentSlotProperty != null
+                && equipmentSlotProperty.propertyType == SerializedPropertyType.Enum
+                && (CombatEquipmentSlot)equipmentSlotProperty.enumValueIndex == CombatEquipmentSlot.Weapon;
+
+            if (isWeaponItem)
+            {
+                if (weaponAttackTypeProperty != null)
+                {
+                    DrawPropertyWithoutAttributes(weaponAttackTypeProperty);
+                }
+
+                if (attackIntervalSecondsProperty != null)
+                {
+                    DrawPropertyWithoutAttributes(attackIntervalSecondsProperty);
+                    attackIntervalSecondsProperty.floatValue = Mathf.Max(0.1f, attackIntervalSecondsProperty.floatValue);
+                }
+
+                bool isRangedWeapon = weaponAttackTypeProperty != null
+                    && weaponAttackTypeProperty.propertyType == SerializedPropertyType.Enum
+                    && (CombatAttackType)weaponAttackTypeProperty.enumValueIndex == CombatAttackType.Ranged;
+
+                if (isRangedWeapon && requiresAmmoProperty != null)
+                {
+                    DrawPropertyWithoutAttributes(requiresAmmoProperty);
+                }
+            }
+
+            DrawExpandedProperty(statBonusesProperty, "Stat Bonuses");
+            DrawConditionRulesDetails(
+                equipRequirementsProperty,
+                "Equip Requirements",
+                "Equip requirements list is not available.",
+                "Add Requirement");
+            return;
+        }
+
+        if (role == CombatItemRole.Food)
+        {
+            EditorGUILayout.LabelField("Slot", "Food");
+            DrawExpandedProperty(foodEffectProperty, "Food Effect");
+            return;
+        }
+
+        if (role == CombatItemRole.Potion)
+        {
+            EditorGUILayout.LabelField("Slot", "Potion");
+            DrawExpandedProperty(potionEffectProperty, "Potion Effect");
+        }
+    }
+
+    private static void DrawExpandedProperty(SerializedProperty property, string label)
+    {
+        if (property == null)
+        {
+            EditorGUILayout.HelpBox($"{label} is not available.", MessageType.Info);
+            return;
+        }
+
+        DrawPropertyChildrenWithoutAttributes(property, label);
     }
 
     private static void EnsureConditionRuleType(SerializedProperty conditionTypeProperty, SerializedProperty conditionProperty)
@@ -1729,13 +1964,109 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         {
             if (iterator.depth == parentDepth + 1)
             {
-                EditorGUILayout.PropertyField(iterator, true);
+                DrawPropertyWithoutAttributes(iterator);
             }
 
             enterChildren = false;
         }
 
         managedReferenceProperty.isExpanded = previousExpandedState;
+    }
+
+    private static void DrawPropertyChildrenWithoutAttributes(SerializedProperty parentProperty, string label)
+    {
+        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+        {
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+            DrawDirectChildrenWithoutAttributes(parentProperty);
+        }
+    }
+
+    private static void DrawDirectChildrenWithoutAttributes(SerializedProperty parentProperty)
+    {
+        int parentDepth = parentProperty.depth;
+        SerializedProperty iterator = parentProperty.Copy();
+        SerializedProperty end = iterator.GetEndProperty();
+        bool enterChildren = true;
+
+        while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
+        {
+            if (iterator.depth == parentDepth + 1)
+            {
+                DrawPropertyWithoutAttributes(iterator);
+            }
+
+            enterChildren = false;
+        }
+    }
+
+    private static void DrawPropertyWithoutAttributes(SerializedProperty property)
+    {
+        if (property == null)
+        {
+            return;
+        }
+
+        GUIContent label = new(property.displayName);
+
+        switch (property.propertyType)
+        {
+            case SerializedPropertyType.Integer:
+                property.intValue = EditorGUILayout.IntField(label, property.intValue);
+                break;
+            case SerializedPropertyType.Float:
+                property.floatValue = EditorGUILayout.FloatField(label, property.floatValue);
+                break;
+            case SerializedPropertyType.Boolean:
+                property.boolValue = EditorGUILayout.Toggle(label, property.boolValue);
+                break;
+            case SerializedPropertyType.Enum:
+                property.enumValueIndex = EditorGUILayout.Popup(label, property.enumValueIndex, property.enumDisplayNames);
+                break;
+            case SerializedPropertyType.String:
+                property.stringValue = EditorGUILayout.TextField(label, property.stringValue);
+                break;
+            case SerializedPropertyType.ObjectReference:
+                property.objectReferenceValue = EditorGUILayout.ObjectField(label, property.objectReferenceValue, typeof(UnityEngine.Object), false);
+                break;
+            case SerializedPropertyType.Color:
+                property.colorValue = EditorGUILayout.ColorField(label, property.colorValue);
+                break;
+            case SerializedPropertyType.Vector2:
+                property.vector2Value = EditorGUILayout.Vector2Field(label.text, property.vector2Value);
+                break;
+            case SerializedPropertyType.Vector3:
+                property.vector3Value = EditorGUILayout.Vector3Field(label.text, property.vector3Value);
+                break;
+            case SerializedPropertyType.Vector4:
+                property.vector4Value = EditorGUILayout.Vector4Field(label.text, property.vector4Value);
+                break;
+            case SerializedPropertyType.Rect:
+                property.rectValue = EditorGUILayout.RectField(label, property.rectValue);
+                break;
+            case SerializedPropertyType.Bounds:
+                property.boundsValue = EditorGUILayout.BoundsField(label, property.boundsValue);
+                break;
+            case SerializedPropertyType.Vector2Int:
+                property.vector2IntValue = EditorGUILayout.Vector2IntField(label.text, property.vector2IntValue);
+                break;
+            case SerializedPropertyType.Vector3Int:
+                property.vector3IntValue = EditorGUILayout.Vector3IntField(label.text, property.vector3IntValue);
+                break;
+            case SerializedPropertyType.RectInt:
+                property.rectIntValue = EditorGUILayout.RectIntField(label, property.rectIntValue);
+                break;
+            case SerializedPropertyType.BoundsInt:
+                property.boundsIntValue = EditorGUILayout.BoundsIntField(label, property.boundsIntValue);
+                break;
+            case SerializedPropertyType.Generic:
+            case SerializedPropertyType.ManagedReference:
+                DrawPropertyChildrenWithoutAttributes(property, label.text);
+                break;
+            default:
+                EditorGUILayout.LabelField(label, new GUIContent($"Unsupported type: {property.propertyType}"));
+                break;
+        }
     }
 
     private static void DrawHeaderCell(string text, float width)
@@ -1772,7 +2103,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 property.objectReferenceValue = EditorGUILayout.ObjectField(property.objectReferenceValue, typeof(UnityEngine.Object), false, GUILayout.Width(width));
                 break;
             default:
-                EditorGUILayout.PropertyField(property, GUIContent.none, false, GUILayout.Width(width));
+                GUILayout.Label("-", GUILayout.Width(width));
                 break;
         }
     }

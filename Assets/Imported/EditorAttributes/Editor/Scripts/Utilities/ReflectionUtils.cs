@@ -433,7 +433,7 @@ namespace EditorAttributes.Editor.Utility
             }
             catch (Exception exception)
             {
-                if (exception is ArgumentException or TargetException) // If these expections are thrown it means that the member we try to get the value from is inside a different target
+                if (exception is ArgumentException or TargetException or TargetInvocationException or InvalidCastException) // If these exceptions are thrown it means that the member we try to get the value from is inside a different target
                 {
                     GetNestedObjectType(property, out object serializedObjectTarget);
 
