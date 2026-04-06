@@ -79,26 +79,145 @@ public partial class CombatManager
         List<ItemsInstance> results = new();
         if (inventory == null)
         {
+            LogVerboseWarning($"GetCompatibleItemsForSlot aborted: inventory is null. slot: {slot}, slotIndex: {utilityIndex}.");
             return results;
         }
 
         IReadOnlyList<ItemsInstance> trackedItems = inventory.GetTrackedItems();
+        LogVerbose($"GetCompatibleItemsForSlot started. slot: {slot}, slotIndex: {utilityIndex}, trackedItemCount: {trackedItems.Count}.");
+
         for (int i = 0; i < trackedItems.Count; i++)
         {
             ItemsInstance instance = trackedItems[i];
             if (instance == null || instance.itemData == null || instance.quantity <= 0)
             {
+                LogVerboseWarning($"Skipping tracked item at index {i} during compatibility query. Null instance: {instance == null}, null itemData: {instance?.itemData == null}, quantity: {instance?.quantity ?? 0}.");
                 continue;
             }
 
-            if (CanEquipItem(instance.itemData, slot) && GetAvailableEquipCopies(instance.itemData, slot, utilityIndex) > 0)
+            if (TryGetEquipIncompatibilityReason(instance.itemData, slot, utilityIndex, out string incompatibilityReason, out int availableCopies))
             {
                 results.Add(instance);
+                LogVerbose($"Compatible item accepted: {instance.itemData.displayName}. quantity: {instance.quantity}, availableCopies: {availableCopies}.");
+            }
+            else
+            {
+                LogVerboseWarning($"Compatible item rejected: {instance.itemData.displayName}. quantity: {instance.quantity}, reason: {incompatibilityReason}.");
             }
         }
 
         results.Sort((left, right) => string.Compare(left.itemData.displayName, right.itemData.displayName, StringComparison.OrdinalIgnoreCase));
+        LogVerbose($"GetCompatibleItemsForSlot finished. slot: {slot}, slotIndex: {utilityIndex}, compatibleCount: {results.Count}.");
         return results;
+    }
+
+    public void LogItemSelectionCompatibilityBreakdown(CombatEquipSlot slot, int utilityIndex = -1)
+    {
+        if (inventory == null)
+        {
+            LogVerboseWarning($"Compatibility breakdown skipped: inventory is null. slot: {slot}, slotIndex: {utilityIndex}.");
+            return;
+        }
+
+        IReadOnlyList<ItemsInstance> trackedItems = inventory.GetTrackedItems();
+        LogVerbose($"Compatibility breakdown started. slot: {slot}, slotIndex: {utilityIndex}, trackedItemCount: {trackedItems.Count}.");
+
+        for (int i = 0; i < trackedItems.Count; i++)
+        {
+            ItemsInstance instance = trackedItems[i];
+            if (instance == null)
+            {
+                LogVerboseWarning($"Breakdown item {i}: instance is null.");
+                continue;
+            }
+
+            if (instance.itemData == null)
+            {
+                LogVerboseWarning($"Breakdown item {i}: itemData is null.");
+                continue;
+            }
+
+            if (TryGetEquipIncompatibilityReason(instance.itemData, slot, utilityIndex, out string incompatibilityReason, out int availableCopies))
+            {
+                LogVerbose($"Breakdown item {i}: {instance.itemData.displayName} is compatible. quantity: {instance.quantity}, availableCopies: {availableCopies}.");
+            }
+            else
+            {
+                LogVerboseWarning($"Breakdown item {i}: {instance.itemData.displayName} is incompatible. quantity: {instance.quantity}, reason: {incompatibilityReason}.");
+            }
+        }
+    }
+
+    bool TryGetEquipIncompatibilityReason(ItemsData itemData, CombatEquipSlot slot, int utilityIndex, out string incompatibilityReason, out int availableCopies)
+    {
+        availableCopies = 0;
+        incompatibilityReason = string.Empty;
+
+        if (itemData == null)
+        {
+            incompatibilityReason = "itemData is null.";
+            return false;
+        }
+
+        if (inventory == null)
+        {
+            incompatibilityReason = "inventory is null.";
+            return false;
+        }
+
+        int quantity = inventory.GetQuantity(itemData);
+        if (quantity <= 0)
+        {
+            incompatibilityReason = "quantity is zero in inventory.";
+            return false;
+        }
+
+        CombatItemDefinition combatData = itemData.combatData;
+        if (combatData == null)
+        {
+            incompatibilityReason = "combatData is null.";
+            return false;
+        }
+
+        combatData.EnsureInitialized();
+        if (!combatData.AllowsSlot(slot))
+        {
+            incompatibilityReason = $"item does not allow slot {slot}.";
+            return false;
+        }
+
+        if (slot == CombatEquipSlot.Food && combatData.itemRole != CombatItemRole.Food)
+        {
+            incompatibilityReason = $"itemRole is {combatData.itemRole}, expected Food.";
+            return false;
+        }
+
+        if (slot == CombatEquipSlot.Potion && combatData.itemRole != CombatItemRole.Potion)
+        {
+            incompatibilityReason = $"itemRole is {combatData.itemRole}, expected Potion.";
+            return false;
+        }
+
+        if (slot != CombatEquipSlot.Food && slot != CombatEquipSlot.Potion && combatData.itemRole != CombatItemRole.Equipment)
+        {
+            incompatibilityReason = $"itemRole is {combatData.itemRole}, expected Equipment for slot {slot}.";
+            return false;
+        }
+
+        if (!ConditionRuleUtility.AreAllMet(combatData.equipRequirements, ConditionContext.Empty))
+        {
+            incompatibilityReason = "equip requirements are not met.";
+            return false;
+        }
+
+        availableCopies = GetAvailableEquipCopies(itemData, slot, utilityIndex);
+        if (availableCopies <= 0)
+        {
+            incompatibilityReason = "no un-equipped copies available.";
+            return false;
+        }
+
+        return true;
     }
 
     public ItemsData GetEquippedItem(CombatEquipSlot slot, int utilityIndex = -1)
@@ -146,16 +265,27 @@ public partial class CombatManager
         }
 
         profile.currentHp = Mathf.Clamp(profile.currentHp + healAmount, 0, GetPlayerMaxHp());
-        profile.foodCooldownEndsAt = Time.unscaledTime + Mathf.Max(0f, foodCooldownSeconds);
+        profile.foodCooldownEndsAt = Time.unscaledTime + GetFoodCooldownDurationSeconds();
         AddCombatLog($"Consumed {foodItem.displayName} and restored {healAmount} HP.");
         ValidateLoadout();
         NotifyStateChanged();
         return true;
     }
 
+    public ItemsData GetPotionSlotItem(int potionSlotIndex)
+    {
+        profile.loadout.EnsureInitialized();
+        return profile.loadout.GetPotionSlot(potionSlotIndex);
+    }
+
     public bool CanUsePotion()
     {
-        ItemsData potionItem = profile.loadout != null ? profile.loadout.potion : null;
+        return CanUsePotion(0);
+    }
+
+    public bool CanUsePotion(int potionSlotIndex)
+    {
+        ItemsData potionItem = GetPotionSlotItem(potionSlotIndex);
         if (potionItem == null || inventory == null)
         {
             return false;
@@ -167,28 +297,143 @@ public partial class CombatManager
             return false;
         }
 
-        return inventory.GetQuantity(potionItem) > 0 && combatData.potionEffect != null && combatData.potionEffect.durationSeconds > 0f;
-    }
-
-    public bool UsePotion()
-    {
-        if (!CanUsePotion())
+        if (combatData.potionEffect == null || combatData.potionEffect.durationSeconds <= 0f)
         {
             return false;
         }
 
-        ItemsData potionItem = profile.loadout.potion;
+        string effectId = ResolvePotionEffectId(potionItem);
+        if (IsPotionEffectActive(effectId))
+        {
+            return false;
+        }
+
+        return inventory.GetQuantity(potionItem) > 0;
+    }
+
+    public bool UsePotion()
+    {
+        return UsePotion(0);
+    }
+
+    public bool UsePotion(int potionSlotIndex)
+    {
+        if (!CanUsePotion(potionSlotIndex))
+        {
+            return false;
+        }
+
+        ItemsData potionItem = GetPotionSlotItem(potionSlotIndex);
         if (!inventory.RemoveItem(potionItem.itemID, out ItemsData _, 1))
         {
             return false;
         }
 
-        profile.activePotionItem = potionItem;
-        profile.potionExpiresAt = Time.unscaledTime + Mathf.Max(0f, potionItem.combatData.potionEffect.durationSeconds);
+        string effectId = ResolvePotionEffectId(potionItem);
+        float expiresAt = Time.unscaledTime + Mathf.Max(0f, potionItem.combatData.potionEffect.durationSeconds);
+        profile.activePotionEffects.Add(new ActivePotionEffectState
+        {
+            effectId = effectId,
+            sourceItem = potionItem,
+            expiresAt = expiresAt
+        });
+
         AddCombatLog($"Activated potion: {potionItem.displayName}.");
         ValidateLoadout();
         NotifyStateChanged();
         return true;
+    }
+
+    bool TryAutoUseConfiguredConsumables()
+    {
+        if (!autoCombatEnabled || encounter.monsterData == null || profile.currentHp <= 0)
+        {
+            return false;
+        }
+
+        bool consumedAnything = false;
+        if (profile.foodAutoUseEnabled && TryAutoUseFood())
+        {
+            consumedAnything = true;
+        }
+
+        if (TryAutoUsePotions())
+        {
+            consumedAnything = true;
+        }
+
+        return consumedAnything;
+    }
+
+    bool TryAutoUseFood()
+    {
+        int maxHp = GetPlayerMaxHp();
+        if (maxHp <= 0)
+        {
+            return false;
+        }
+
+        float hpPercent = (float)profile.currentHp / maxHp;
+        if (hpPercent > Mathf.Clamp01(profile.foodAutoUseThresholdPercent))
+        {
+            return false;
+        }
+
+        return UseFood();
+    }
+
+    bool TryAutoUsePotions()
+    {
+        bool consumedAnything = false;
+        for (int slotIndex = 0; slotIndex < EquipmentLoadout.PotionSlotCount; slotIndex++)
+        {
+            if (!GetPotionAutoUseEnabled(slotIndex))
+            {
+                continue;
+            }
+
+            ItemsData potionItem = GetPotionSlotItem(slotIndex);
+            if (potionItem == null)
+            {
+                continue;
+            }
+
+            string effectId = ResolvePotionEffectId(potionItem);
+            if (IsPotionEffectActive(effectId))
+            {
+                continue;
+            }
+
+            if (UsePotion(slotIndex))
+            {
+                consumedAnything = true;
+            }
+        }
+
+        return consumedAnything;
+    }
+
+    float GetFoodCooldownDurationSeconds()
+    {
+        int cooldownModifierPercent = GetFoodCooldownModifierPercent();
+        float cooldownMultiplier = Mathf.Max(0f, 1f - (cooldownModifierPercent / 100f));
+        return Mathf.Max(0f, foodCooldownSeconds * cooldownMultiplier);
+    }
+
+    string ResolvePotionEffectId(ItemsData potionItem)
+    {
+        if (potionItem == null || potionItem.combatData == null || potionItem.combatData.potionEffect == null)
+        {
+            return string.Empty;
+        }
+
+        string configuredEffectId = potionItem.combatData.potionEffect.effectId;
+        if (!string.IsNullOrWhiteSpace(configuredEffectId))
+        {
+            return configuredEffectId.Trim();
+        }
+
+        return $"potion-item-{potionItem.itemID}";
     }
 
     void HandleInventoryChanged()
@@ -318,7 +563,7 @@ public partial class CombatManager
             CombatEquipSlot.Cape => "Cape",
             CombatEquipSlot.Ammo => "Ammo",
             CombatEquipSlot.Food => "Food",
-            CombatEquipSlot.Potion => "Potion",
+            CombatEquipSlot.Potion => utilityIndex >= 0 ? $"Potion {utilityIndex + 1}" : "Potion 1",
             CombatEquipSlot.Utility => utilityIndex >= 0 ? $"Utility {utilityIndex + 1}" : "Utility",
             _ => "Unknown"
         };

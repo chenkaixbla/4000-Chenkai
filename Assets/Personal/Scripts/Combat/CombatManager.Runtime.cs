@@ -5,15 +5,30 @@ public partial class CombatManager
     bool UpdateTimedStatuses()
     {
         bool stateChanged = false;
-        bool potionActive = IsPotionActive();
-        if (potionWasActive && !potionActive)
+
+        // Expire potion effects individually so concurrent effects can end independently.
+        float now = Time.unscaledTime;
+        for (int i = profile.activePotionEffects.Count - 1; i >= 0; i--)
         {
-            profile.activePotionItem = null;
-            AddCombatLog("Potion effect faded.");
+            ActivePotionEffectState effect = profile.activePotionEffects[i];
+            if (effect == null || effect.sourceItem == null)
+            {
+                profile.activePotionEffects.RemoveAt(i);
+                stateChanged = true;
+                continue;
+            }
+
+            if (effect.expiresAt > now)
+            {
+                continue;
+            }
+
+            AddCombatLog($"Potion effect faded: {effect.sourceItem.displayName}.");
+            profile.activePotionEffects.RemoveAt(i);
             stateChanged = true;
         }
 
-        potionWasActive = potionActive;
+        potionWasActive = profile.activePotionEffects.Count > 0;
 
         bool deathDebuffActive = IsDeathDebuffActive();
         if (deathDebuffWasActive && !deathDebuffActive)

@@ -14,7 +14,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1576557193610100542, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_Name
-      value: Item Slots - No Text
+      value: 'Item Slots - No Text [None]'
       objectReference: {fileID: 0}
     - target: {fileID: 1911988081468607620, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_Pivot.x
@@ -99,6 +99,10 @@ PrefabInstance:
     - target: {fileID: 3930170622000672203, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_IsActive
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5847366317684114232, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
+      propertyPath: countText
+      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:

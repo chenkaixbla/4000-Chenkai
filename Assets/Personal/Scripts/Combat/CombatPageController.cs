@@ -13,84 +13,173 @@ public partial class CombatPageController : MonoBehaviour
         public TMP_Text label;
     }
 
-    sealed class SlotButtonBinding
+    [System.Serializable]
+    sealed class PlayerStatsDisplayGroup
     {
-        public CombatEquipSlot slot;
-        public int utilityIndex;
-        public ButtonRefs refs;
+        public StatsDisplayText accuracy;
+        public StatsDisplayText maxHit;
+        public StatsDisplayText evasion;
+        public StatsDisplayText damageReduction;
+        public StatsDisplayText attackInterval;
+        public StatsDisplayText levels;
+        public StatsDisplayText blocked;
+    }
+
+    [System.Serializable]
+    sealed class MonsterStatsDisplayGroup
+    {
+        public StatsDisplayText attackType;
+        public StatsDisplayText accuracy;
+        public StatsDisplayText maxHit;
+        public StatsDisplayText evasion;
+        public StatsDisplayText damageReduction;
+        public StatsDisplayText firstTenBonusDefeats;
+    }
+
+    enum MonsterAttributeValueType
+    {
+        AttackType,
+        Accuracy,
+        MaxHit,
+        DamageReductionPercent,
+        MeleeEvasion,
+        RangedEvasion,
+        MagicEvasion,
+        EvasionSummary,
+        FirstTenBonusDefeats
+    }
+
+    [System.Serializable]
+    sealed class MonsterAttributeDisplaySetting
+    {
+        // Target UI row this setting writes to.
+        public Image_Text slot;
+
+        // Which monster value is rendered in this row.
+        public MonsterAttributeValueType valueType = MonsterAttributeValueType.AttackType;
+
+        // Optional label shown before the value. Leave empty to render value only.
+        public string labelPrefix = string.Empty;
+
+        // Optional icon rendered in the row.
+        public Sprite icon;
     }
 
     CombatManager manager;
     bool isBuilt;
-    CombatEquipSlot selectedSlot = CombatEquipSlot.Weapon;
-    int selectedUtilityIndex = -1;
 
     readonly Dictionary<MonsterData, MonsterSelectionButtonElement> monsterButtons = new();
-    readonly List<SlotButtonBinding> slotButtons = new();
+    readonly List<ItemSlot> allLoadoutSlots = new();
 
-    [Title("UI - Monster List Spawning")]
-    // Spawn setup for the monster list (content parent + runtime button element prefab).
+    CombatEquipSlot selectedSlot = CombatEquipSlot.None;
+    int selectedSlotIndex = -1;
+    ItemSlot activeSelectionSourceSlot;
+
+    [Title("UI - Monster Switcher")]
+    // Button that toggles the monster switcher panel.
+    [SerializeField] Button monsterSwitcherButton;
+
+    // Toggleable root panel containing monster switcher list content.
+    [SerializeField] GameObject monsterSwitcherPanelRoot;
+
+    // Spawn setup for monster switcher entries.
     [SerializeField] CombatSpawnListReferences monsterListSpawn = new();
 
-    [Title("UI - Item Selection Spawning")]
-    // Spawn setup for the slot-item selection list (content parent + runtime button element prefab).
-    [SerializeField] CombatSpawnListReferences selectionListSpawn = new();
-
-    [Title("UI - Player")]
-    // Label displaying current and max player HP.
-    [SerializeField] TMP_Text playerHpText;
-
-    // Filled image used as the player's HP bar.
-    [SerializeField] Image playerHpFill;
-
-    // Multiline combat stat summary for the player.
-    [SerializeField] TMP_Text playerDerivedText;
-
-    // Timers for attack cooldown and consumable cooldown.
-    [SerializeField] TMP_Text playerTimerText;
-
-    [Title("UI - Monster")]
-    // Label for currently selected or active monster name.
+    [Title("UI - Monster Panel")]
+    // Name text for currently selected/active monster.
     [SerializeField] TMP_Text monsterNameText;
 
-    // Label displaying current and max monster HP.
+    // Description text for currently selected/active monster.
+    [SerializeField] TMP_Text monsterDescriptionText;
+
+    // Unified monster attribute row settings (slot reference + value + label + icon).
+    [SerializeField] List<MonsterAttributeDisplaySetting> monsterAttributeSettings = new()
+    {
+        new() { valueType = MonsterAttributeValueType.AttackType, labelPrefix = "Attack Type" },
+        new() { valueType = MonsterAttributeValueType.Accuracy, labelPrefix = "Accuracy" },
+        new() { valueType = MonsterAttributeValueType.MaxHit, labelPrefix = "Max Hit" },
+        new() { valueType = MonsterAttributeValueType.FirstTenBonusDefeats, labelPrefix = "First 10 Bonus" }
+    };
+
+    // Attack/respawn timer fill for monster panel.
+    [SerializeField] Image monsterAttackTimerFill;
+
+    // Attack/respawn timer text for monster panel.
+    [SerializeField] TMP_Text monsterAttackTimerText;
+
+    // Health text for monster panel.
     [SerializeField] TMP_Text monsterHpText;
 
-    // Filled image used as the monster HP bar.
+    // Health fill image for monster panel.
     [SerializeField] Image monsterHpFill;
 
-    // Multiline monster stat summary.
-    [SerializeField] TMP_Text monsterStatsText;
 
-    // Timer label for monster attack or respawn countdown.
-    [SerializeField] TMP_Text monsterTimerText;
+    [Title("UI - Player Panel")]
+    // Health text for player panel.
+    [SerializeField] TMP_Text playerHpText;
 
-    [Title("UI - Status And Log")]
-    // Overall encounter state text (idle, combat, respawning, dead).
-    [SerializeField] TMP_Text statusText;
+    // Health fill image for player panel.
+    [SerializeField] Image playerHpFill;
 
-    // Active timed effects text (potion/debuff states).
-    [SerializeField] TMP_Text effectStatusText;
+    // Player attack timer fill image.
+    [SerializeField] Image playerAttackTimerFill;
 
-    // Scrolling combat log text output.
-    [SerializeField] TMP_Text logText;
+    // Player attack timer text.
+    [SerializeField] TMP_Text playerAttackTimerText;
 
-    // Header text above the right-hand selection list.
+    // Food item slot with optional auto-use toggle.
+    [SerializeField] ItemSlot foodSlot;
+
+    // Potion item slots (expected: 3) with optional auto-use toggles.
+    [SerializeField] List<ItemSlot> potionSlots = new();
+
+
+    [Title("UI - Equipment Panel")]
+    // Equipment slots (weapon/offhand/armor/accessories) represented as ItemSlot components.
+    [SerializeField] List<ItemSlot> equipmentSlots = new();
+
+    [Title("UI - Item Selection Panel")]
+    // Root object for item candidate selection panel.
+    [SerializeField] GameObject itemSelectionPanelRoot;
+
+    // Optional dedicated close button for item selection panel.
+    [SerializeField] Button itemSelectionCloseButton;
+
+    // Header text above candidate list.
     [SerializeField] TMP_Text selectionTitleText;
 
-    [Title("UI - Action Buttons")]
-    // Uses equipped food when available.
+    // Spawn setup for candidate ItemSlot rows.
+    [SerializeField] ItemSlotSpawnReferences itemSelectionSpawn = new();
+
+    // Per-controller toggle for verbose diagnostic logs.
+    [SerializeField] bool enableVerboseLogging = true;
+
+    [Title("UI - Stats")]
+    // Explicitly named player stats rows.
+    [SerializeField] PlayerStatsDisplayGroup playerStats = new();
+
+    // Explicitly named monster stats rows.
+    [SerializeField] MonsterStatsDisplayGroup monsterStats = new();
+
+    [Title("UI - Status And Log")]
+    // Current encounter status text.
+    [SerializeField] TMP_Text statusText;
+
+    // Active effect/debuff summary text.
+    [SerializeField] TMP_Text effectStatusText;
+
+    // Combat log output text.
+    [SerializeField] TMP_Text logText;
+
+    [Title("UI - Manual Action Buttons")]
+    // Manual food-use button.
     [SerializeField] Button foodButton;
 
-    // Uses equipped potion when available.
+    // Manual potion-use button.
     [SerializeField] Button potionButton;
 
-    // Stops combat and clears current encounter state.
+    // Manual stop-combat button.
     [SerializeField] Button stopButton;
-
-    [Title("UI - Slot Buttons")]
-    // Slot button elements authored in the scene (each element knows its slot/index and UI refs).
-    [SerializeField] List<CombatSlotButtonElement> slotButtonElements = new();
 
     ButtonRefs foodButtonRefs;
     ButtonRefs potionButtonRefs;
@@ -125,6 +214,10 @@ public partial class CombatPageController : MonoBehaviour
         {
             manager.StateChanged -= HandleStateChanged;
         }
+
+        UnbindSelectionCloseButton();
+
+        UnbindLoadoutSlots();
     }
 
     void Update()
@@ -155,9 +248,37 @@ public partial class CombatPageController : MonoBehaviour
         }
 
         RebuildMonsterList();
-        RefreshSlotButtons();
-        RebuildSelectionList();
+        RefreshItemSlots();
+        // Keep selection list rendering strictly tied to active panel context.
+        RefreshSelectionListIfOpen();
         RefreshDynamicState();
+    }
+
+    void RefreshSelectionListIfOpen()
+    {
+        if (itemSelectionPanelRoot == null || !itemSelectionPanelRoot.activeSelf)
+        {
+            // Panel is not open, so force list to remain empty.
+            ClearSelectionList();
+            return;
+        }
+
+        RebuildSelectionList();
+    }
+
+    void ClearSelectionList()
+    {
+        if (itemSelectionSpawn?.Content == null)
+        {
+            return;
+        }
+
+        ClearChildren(itemSelectionSpawn.Content);
+
+        if (selectionTitleText != null)
+        {
+            selectionTitleText.text = "Selection";
+        }
     }
 
     void RefreshDynamicState()
@@ -168,69 +289,166 @@ public partial class CombatPageController : MonoBehaviour
         }
 
         int playerMaxHp = manager.GetPlayerMaxHp();
-        playerHpText.text = $"Player HP: {manager.Profile.currentHp} / {playerMaxHp}";
-        playerHpFill.fillAmount = playerMaxHp > 0 ? (float)manager.Profile.currentHp / playerMaxHp : 0f;
+        if (playerHpText != null)
+        {
+            playerHpText.text = $"Player HP: {manager.Profile.currentHp} / {playerMaxHp}";
+        }
+
+        if (playerHpFill != null)
+        {
+            playerHpFill.fillAmount = playerMaxHp > 0 ? (float)manager.Profile.currentHp / playerMaxHp : 0f;
+        }
+
+        float playerAttackRemaining = manager.GetPlayerAttackRemainingSeconds();
+        float playerAttackInterval = Mathf.Max(0.001f, manager.GetPlayerAttackInterval());
+        float playerAttackProgress = 1f - Mathf.Clamp01(playerAttackRemaining / playerAttackInterval);
+        if (playerAttackTimerFill != null)
+        {
+            playerAttackTimerFill.fillAmount = playerAttackProgress;
+        }
+
+        if (playerAttackTimerText != null)
+        {
+            playerAttackTimerText.text = $"Attack: {playerAttackRemaining:0.0}s";
+        }
 
         string blockedReason = manager.GetPlayerAttackBlockedReason();
-        playerDerivedText.text =
-            $"Accuracy: {manager.GetPlayerAccuracyRating():N0}\n" +
-            $"Max Hit: {manager.GetPlayerMaxHit()}\n" +
-            $"Evasion (M/R/M): {manager.GetPlayerEvasionRating(CombatAttackType.Melee):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Ranged):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Magic):N0}\n" +
-            $"Damage Reduction: {manager.GetPlayerDamageReductionPercent()}%\n" +
-            $"Attack Interval: {manager.GetPlayerAttackInterval():0.0}s\n" +
-            $"Levels  HP {manager.Profile.hitpoints.currentLevel}  ATK {manager.Profile.attack.currentLevel}  STR {manager.Profile.strength.currentLevel}  DEF {manager.Profile.defence.currentLevel}  RNG {manager.Profile.range.currentLevel}" +
-            (string.IsNullOrWhiteSpace(blockedReason) ? string.Empty : $"\nBlocked: {blockedReason}");
-
-        playerTimerText.text = $"Player Attack In: {manager.GetPlayerAttackRemainingSeconds():0.0}s   Food CD: {manager.GetFoodCooldownRemainingSeconds():0.0}s";
+        SetStatsEntry(playerStats?.accuracy, "Accuracy", manager.GetPlayerAccuracyRating().ToString("N0"));
+        SetStatsEntry(playerStats?.maxHit, "Max Hit", manager.GetPlayerMaxHit().ToString());
+        SetStatsEntry(
+            playerStats?.evasion,
+            "Evasion",
+            $"{manager.GetPlayerEvasionRating(CombatAttackType.Melee):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Ranged):N0} / {manager.GetPlayerEvasionRating(CombatAttackType.Magic):N0}");
+        SetStatsEntry(playerStats?.damageReduction, "Damage Reduction", $"{manager.GetPlayerDamageReductionPercent()}%");
+        SetStatsEntry(playerStats?.attackInterval, "Attack Interval", $"{manager.GetPlayerAttackInterval():0.0}s");
+        SetStatsEntry(
+            playerStats?.levels,
+            "Levels",
+            $"HP {manager.Profile.hitpoints.currentLevel}  ATK {manager.Profile.attack.currentLevel}  STR {manager.Profile.strength.currentLevel}  DEF {manager.Profile.defence.currentLevel}  RNG {manager.Profile.range.currentLevel}");
+        SetStatsEntry(playerStats?.blocked, "Blocked", string.IsNullOrWhiteSpace(blockedReason) ? string.Empty : blockedReason);
 
         MonsterData displayedMonster = manager.DisplayedMonster;
         if (displayedMonster == null)
         {
-            monsterNameText.text = "No Monster Selected";
-            monsterHpText.text = "Monster HP: 0 / 0";
-            monsterHpFill.fillAmount = 0f;
-            monsterStatsText.text = "Select a monster to start combat.";
-            monsterTimerText.text = string.Empty;
+            if (monsterNameText != null)
+            {
+                monsterNameText.text = "No Monster Selected";
+            }
+
+            if (monsterDescriptionText != null)
+            {
+                monsterDescriptionText.text = string.Empty;
+            }
+
+            if (monsterHpText != null)
+            {
+                monsterHpText.text = "Monster HP: 0 / 0";
+            }
+
+            if (monsterHpFill != null)
+            {
+                monsterHpFill.fillAmount = 0f;
+            }
+
+            if (monsterAttackTimerFill != null)
+            {
+                monsterAttackTimerFill.fillAmount = 0f;
+            }
+
+            if (monsterAttackTimerText != null)
+            {
+                monsterAttackTimerText.text = string.Empty;
+            }
+
+            ClearMonsterStatsDisplay();
+            ClearMonsterAttributeSlots();
         }
         else
         {
             int currentMonsterHp = manager.Encounter.monsterData != null ? manager.Encounter.currentMonsterHp : 0;
-            monsterNameText.text = displayedMonster.displayName;
-            monsterHpText.text = $"Monster HP: {currentMonsterHp} / {displayedMonster.maxHp}";
-            monsterHpFill.fillAmount = displayedMonster.maxHp > 0 ? (float)currentMonsterHp / displayedMonster.maxHp : 0f;
-            monsterStatsText.text =
-                $"Attack Type: {displayedMonster.attackType}\n" +
-                $"Accuracy: {displayedMonster.attackAccuracy:N0}\n" +
-                $"Max Hit: {displayedMonster.maxHit}\n" +
-                $"Evasion (M/R/M): {displayedMonster.meleeEvasion:N0} / {displayedMonster.rangedEvasion:N0} / {displayedMonster.magicEvasion:N0}\n" +
-                $"Damage Reduction: {displayedMonster.damageReductionPercent}%\n" +
-                $"First 10 Bonus Defeats: {Mathf.Clamp(10 - manager.GetMonsterKillCount(displayedMonster), 0, 10)} remaining";
+            if (monsterNameText != null)
+            {
+                monsterNameText.text = displayedMonster.displayName;
+            }
 
-            monsterTimerText.text = manager.IsRespawning
-                ? $"Respawn In: {manager.GetRespawnRemainingSeconds():0.0}s"
-                : $"Monster Attack In: {manager.GetMonsterAttackRemainingSeconds():0.0}s";
+            if (monsterDescriptionText != null)
+            {
+                monsterDescriptionText.text = displayedMonster.description ?? string.Empty;
+            }
+
+            if (monsterHpText != null)
+            {
+                monsterHpText.text = $"Monster HP: {currentMonsterHp} / {displayedMonster.maxHp}";
+            }
+
+            if (monsterHpFill != null)
+            {
+                monsterHpFill.fillAmount = displayedMonster.maxHp > 0 ? (float)currentMonsterHp / displayedMonster.maxHp : 0f;
+            }
+
+            bool isRespawning = manager.IsRespawning;
+            float timerRemaining = isRespawning ? manager.GetRespawnRemainingSeconds() : manager.GetMonsterAttackRemainingSeconds();
+            float timerDuration = isRespawning ? Mathf.Max(0.001f, manager.monsterRespawnDelay) : Mathf.Max(0.001f, displayedMonster.attackInterval);
+            float timerProgress = 1f - Mathf.Clamp01(timerRemaining / timerDuration);
+
+            if (monsterAttackTimerFill != null)
+            {
+                monsterAttackTimerFill.fillAmount = timerProgress;
+            }
+
+            if (monsterAttackTimerText != null)
+            {
+                monsterAttackTimerText.text = isRespawning
+                    ? $"Respawn: {timerRemaining:0.0}s"
+                    : $"Attack: {timerRemaining:0.0}s";
+            }
+
+            int firstTenRemaining = Mathf.Clamp(10 - manager.GetMonsterKillCount(displayedMonster), 0, 10);
+            SetStatsEntry(monsterStats?.attackType, "Attack Type", displayedMonster.attackType.ToString());
+            SetStatsEntry(monsterStats?.accuracy, "Accuracy", displayedMonster.attackAccuracy.ToString("N0"));
+            SetStatsEntry(monsterStats?.maxHit, "Max Hit", displayedMonster.maxHit.ToString());
+            SetStatsEntry(
+                monsterStats?.evasion,
+                "Evasion",
+                $"{displayedMonster.meleeEvasion:N0} / {displayedMonster.rangedEvasion:N0} / {displayedMonster.magicEvasion:N0}");
+            SetStatsEntry(monsterStats?.damageReduction, "Damage Reduction", $"{displayedMonster.damageReductionPercent}%");
+            SetStatsEntry(monsterStats?.firstTenBonusDefeats, "First 10 Bonus Defeats", $"{firstTenRemaining} remaining");
+
+            UpdateMonsterAttributeSlots(displayedMonster, firstTenRemaining);
         }
 
         if (manager.Profile.currentHp <= 0)
         {
-            statusText.text = "Status: Dead";
+            if (statusText != null)
+            {
+                statusText.text = "Status: Dead";
+            }
         }
         else if (manager.IsRespawning)
         {
-            statusText.text = "Status: Waiting for respawn";
+            if (statusText != null)
+            {
+                statusText.text = "Status: Waiting for respawn";
+            }
         }
         else if (manager.IsCombatRunning)
         {
-            statusText.text = "Status: In combat";
+            if (statusText != null)
+            {
+                statusText.text = "Status: In combat";
+            }
         }
-        else
+        else if (statusText != null)
         {
             statusText.text = "Status: Idle";
         }
 
-        effectStatusText.text =
-            $"Potion: {(manager.IsPotionActive() ? $"{manager.Profile.activePotionItem.displayName} ({manager.GetPotionRemainingSeconds():0.0}s)" : "Inactive")}\n" +
-            $"Death Debuff: {(manager.IsDeathDebuffActive() ? $"{manager.GetDeathDebuffRemainingSeconds():0.0}s remaining" : "Inactive")}";
+        if (effectStatusText != null)
+        {
+            effectStatusText.text =
+                $"Potion Effects: {manager.GetActivePotionSummary()}\n" +
+                $"Death Debuff: {(manager.IsDeathDebuffActive() ? $"{manager.GetDeathDebuffRemainingSeconds():0.0}s remaining" : "Inactive")}";
+        }
 
         if (foodButtonRefs?.button != null)
         {
@@ -247,12 +465,20 @@ public partial class CombatPageController : MonoBehaviour
             stopButtonRefs.button.interactable = manager.IsCombatRunning || manager.IsRespawning;
         }
 
-        IReadOnlyList<string> combatLog = manager.CombatLog;
-        logText.text = combatLog.Count > 0 ? string.Join("\n", combatLog) : "Combat log is empty.";
+        if (logText != null)
+        {
+            IReadOnlyList<string> combatLog = manager.CombatLog;
+            logText.text = combatLog.Count > 0 ? string.Join("\n", combatLog) : "Combat log is empty.";
+        }
     }
 
     void RebuildMonsterList()
     {
+        if (monsterListSpawn?.Content == null)
+        {
+            return;
+        }
+
         ClearChildren(monsterListSpawn.Content);
         monsterButtons.Clear();
 
@@ -271,7 +497,7 @@ public partial class CombatPageController : MonoBehaviour
             }
 
             MonsterData capturedMonster = monsterData;
-            MonsterSelectionButtonElement buttonElement = CreateSelectionButton(monsterListSpawn, string.Empty, () => manager.SelectMonster(capturedMonster), 58f);
+            MonsterSelectionButtonElement buttonElement = CreateSelectionButton(monsterListSpawn, string.Empty, () => HandleMonsterSelected(capturedMonster), 58f);
             if (buttonElement == null)
             {
                 continue;
@@ -283,6 +509,16 @@ public partial class CombatPageController : MonoBehaviour
         }
 
         RefreshMonsterButtonStates();
+    }
+
+    void HandleMonsterSelected(MonsterData monsterData)
+    {
+        manager.SelectMonster(monsterData);
+        activeSelectionSourceSlot = null;
+        if (monsterSwitcherPanelRoot != null)
+        {
+            monsterSwitcherPanelRoot.SetActive(false);
+        }
     }
 
     void RefreshMonsterButtonStates()
@@ -299,45 +535,139 @@ public partial class CombatPageController : MonoBehaviour
         }
     }
 
-    void RefreshSlotButtons()
+    void RefreshItemSlots()
     {
-        for (int i = 0; i < slotButtons.Count; i++)
+        for (int i = 0; i < allLoadoutSlots.Count; i++)
         {
-            SlotButtonBinding binding = slotButtons[i];
-            ItemsData equippedItem = manager.GetEquippedItem(binding.slot, binding.utilityIndex);
+            ItemSlot slot = allLoadoutSlots[i];
+            if (slot == null)
+            {
+                continue;
+            }
+
+            ItemsData equippedItem = manager.GetEquippedItem(slot.Slot, slot.SlotIndex);
             int quantity = equippedItem != null && manager.inventory != null ? manager.inventory.GetQuantity(equippedItem) : 0;
+            string slotLabel = CombatManager.GetSlotDisplayName(slot.Slot, slot.SlotIndex);
             string itemLabel = equippedItem != null ? $"{equippedItem.displayName} x{quantity}" : "Empty";
+            slot.BindItem(equippedItem, quantity, $"{slotLabel}\n{itemLabel}");
 
-            if (binding.refs.label != null)
+            if (slot.Slot == CombatEquipSlot.Food)
             {
-                binding.refs.label.text = $"{CombatManager.GetSlotDisplayName(binding.slot, binding.utilityIndex)}\n{itemLabel}";
+                slot.SetAutoToggleVisible(true);
+                slot.SetAutoToggleValue(manager.GetFoodAutoUseEnabled());
             }
+            else if (slot.Slot == CombatEquipSlot.Potion)
+            {
+                slot.SetAutoToggleVisible(true);
+                slot.SetAutoToggleValue(manager.GetPotionAutoUseEnabled(slot.SlotIndex));
+            }
+            else
+            {
+                slot.SetAutoToggleVisible(false);
+            }
+        }
+    }
 
-            bool isSelected = selectedSlot == binding.slot && selectedUtilityIndex == binding.utilityIndex;
-            if (binding.refs.background != null)
-            {
-                binding.refs.background.color = isSelected ? new Color(0.42f, 0.30f, 0.14f, 0.95f) : new Color(0.16f, 0.16f, 0.16f, 0.95f);
-            }
+    void HandleItemSlotClicked(ItemSlot slot)
+    {
+        if (slot == null)
+        {
+            LogVerboseWarning("HandleItemSlotClicked received null slot.");
+            return;
+        }
+
+        bool panelIsOpen = itemSelectionPanelRoot != null && itemSelectionPanelRoot.activeSelf;
+        bool isSameSelectionSource = panelIsOpen &&
+            activeSelectionSourceSlot == slot &&
+            selectedSlot == slot.Slot &&
+            selectedSlotIndex == slot.SlotIndex;
+
+        // Clicking the same source slot again acts as a close toggle for the panel.
+        if (isSameSelectionSource)
+        {
+            LogVerbose($"ItemSlot clicked again for active selection source. Closing panel for slot {slot.Slot} ({slot.SlotIndex}).");
+            CloseSelectionPanel();
+            return;
+        }
+
+        LogVerbose(
+            $"ItemSlot clicked. uiName: {slot.gameObject.name}, slot: {slot.Slot}, slotIndex: {slot.SlotIndex}, boundItem: {slot.BoundItemData?.displayName ?? "None"}, boundQuantity: {slot.BoundQuantity}.");
+
+        selectedSlot = slot.Slot;
+        selectedSlotIndex = slot.SlotIndex;
+        activeSelectionSourceSlot = slot;
+
+        if (itemSelectionPanelRoot != null)
+        {
+            itemSelectionPanelRoot.SetActive(true);
+            LogVerbose("Item selection panel opened from slot click.");
+        }
+        else
+        {
+            LogVerboseError("Cannot open item selection panel because itemSelectionPanelRoot is null.");
+        }
+
+        RebuildSelectionList();
+    }
+
+    void HandleItemSlotToggleChanged(ItemSlot slot, bool enabled)
+    {
+        if (slot == null || manager == null)
+        {
+            return;
+        }
+
+        if (slot.Slot == CombatEquipSlot.Food)
+        {
+            manager.SetFoodAutoUseEnabled(enabled);
+            return;
+        }
+
+        if (slot.Slot == CombatEquipSlot.Potion)
+        {
+            manager.SetPotionAutoUseEnabled(slot.SlotIndex, enabled);
         }
     }
 
     void RebuildSelectionList()
     {
-        ClearChildren(selectionListSpawn.Content);
-        selectionTitleText.text = $"Selection: {CombatManager.GetSlotDisplayName(selectedSlot, selectedUtilityIndex)}";
-
-        if (selectedSlot == CombatEquipSlot.None)
+        if (itemSelectionSpawn?.Content == null)
         {
-            CreateSelectionInfoButton(selectionListSpawn, "Select a slot to equip items.", 54f);
+            LogVerboseWarning("RebuildSelectionList skipped because selection spawn content is missing.");
             return;
         }
 
-        CreateSelectionButton(selectionListSpawn, "Unequip", () => manager.EquipItem(selectedSlot, null, selectedUtilityIndex), 54f);
+        LogVerbose(
+            $"RebuildSelectionList start. panelActive: {itemSelectionPanelRoot != null && itemSelectionPanelRoot.activeSelf}, selectedSlot: {selectedSlot}, selectedSlotIndex: {selectedSlotIndex}, activeSourceSlot: {activeSelectionSourceSlot?.gameObject.name ?? "None"}.");
 
-        List<ItemsInstance> candidates = manager.GetCompatibleItemsForSlot(selectedSlot, selectedUtilityIndex);
+        ClearChildren(itemSelectionSpawn.Content);
+
+        bool panelIsOpen = itemSelectionPanelRoot != null && itemSelectionPanelRoot.activeSelf;
+        if (selectionTitleText != null)
+        {
+            selectionTitleText.text = !panelIsOpen || activeSelectionSourceSlot == null
+                ? "Selection"
+                : $"Selection: {CombatManager.GetSlotDisplayName(selectedSlot, selectedSlotIndex)}";
+
+            LogVerbose($"Selection title updated: {selectionTitleText.text}");
+        }
+
+        // The selection panel should only render concrete candidate item rows.
+        // If no slot is actively selected, keep the panel list empty.
+        if (!panelIsOpen || activeSelectionSourceSlot == null || selectedSlot == CombatEquipSlot.None)
+        {
+            LogVerbose("No active source slot while rebuilding selection list. Leaving candidate list empty.");
+            return;
+        }
+
+        List<ItemsInstance> candidates = manager.GetCompatibleItemsForSlot(selectedSlot, selectedSlotIndex);
+        LogVerbose(
+            $"Compatible candidate query finished. slot: {selectedSlot}, slotIndex: {selectedSlotIndex}, candidateCount: {candidates.Count}.");
+
         if (candidates.Count == 0)
         {
-            CreateSelectionInfoButton(selectionListSpawn, "No compatible inventory items.", 54f);
+            manager.LogItemSelectionCompatibilityBreakdown(selectedSlot, selectedSlotIndex);
+            LogVerboseWarning("Selection list ended with no compatible inventory item rows. Candidate list remains empty.");
             return;
         }
 
@@ -351,12 +681,189 @@ public partial class CombatPageController : MonoBehaviour
 
             ItemsData capturedItem = candidate.itemData;
             int capturedQuantity = candidate.quantity;
-            CreateSelectionButton(
-                selectionListSpawn,
-                $"{capturedItem.displayName} x{capturedQuantity}",
-                () => manager.EquipItem(selectedSlot, capturedItem, selectedUtilityIndex),
-                54f);
+            ItemSlot candidateSlot = CreateSelectionItemSlot();
+            if (candidateSlot == null)
+            {
+                LogVerboseError($"Failed to create candidate row for {capturedItem.displayName}.");
+                continue;
+            }
+
+            string label = $"{capturedItem.displayName} x{capturedQuantity}";
+            LogVerbose($"Adding candidate row: {label}.");
+            candidateSlot.BindItem(capturedItem, capturedQuantity, label);
+            candidateSlot.SetCandidateSelectAction(() =>
+            {
+                LogVerbose($"Candidate selected: {capturedItem.displayName} for slot {selectedSlot} ({selectedSlotIndex}).");
+                manager.EquipItem(selectedSlot, capturedItem, selectedSlotIndex);
+                CloseSelectionPanel();
+            });
+            candidateSlot.SetAutoToggleVisible(false);
+        }
+
+        LogVerbose($"RebuildSelectionList complete. Spawned candidate rows: {candidates.Count}. Content child count: {itemSelectionSpawn.Content.childCount}.");
+    }
+
+    void CloseSelectionPanel()
+    {
+        LogVerbose(
+            $"Closing selection panel. Previous selectedSlot: {selectedSlot}, selectedSlotIndex: {selectedSlotIndex}, activeSourceSlot: {activeSelectionSourceSlot?.gameObject.name ?? "None"}.");
+
+        activeSelectionSourceSlot = null;
+        selectedSlot = CombatEquipSlot.None;
+        selectedSlotIndex = -1;
+
+        if (itemSelectionPanelRoot != null)
+        {
+            itemSelectionPanelRoot.SetActive(false);
+        }
+
+        ClearSelectionList();
+        RefreshItemSlots();
+    }
+
+    void LogVerbose(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.Log("CombatPageController", message);
+    }
+
+    void LogVerboseWarning(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.LogWarning("CombatPageController", message);
+    }
+
+    void LogVerboseError(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.LogError("CombatPageController", message);
+    }
+
+    void ToggleMonsterSwitcherPanel()
+    {
+        if (monsterSwitcherPanelRoot == null)
+        {
+            return;
+        }
+
+        bool nextState = !monsterSwitcherPanelRoot.activeSelf;
+        monsterSwitcherPanelRoot.SetActive(nextState);
+        if (nextState)
+        {
+            RebuildMonsterList();
         }
     }
 
+    void UpdateMonsterAttributeSlots(MonsterData monsterData, int firstTenRemaining)
+    {
+        if (monsterAttributeSettings == null || monsterAttributeSettings.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < monsterAttributeSettings.Count; i++)
+        {
+            MonsterAttributeDisplaySetting rowSetting = monsterAttributeSettings[i];
+            if (rowSetting == null || rowSetting.slot == null)
+            {
+                continue;
+            }
+
+            string valueText = GetMonsterAttributeValueText(monsterData, firstTenRemaining, rowSetting.valueType);
+            rowSetting.slot.Set(rowSetting.icon, BuildMonsterAttributeRowText(rowSetting, valueText));
+        }
+    }
+
+    string BuildMonsterAttributeRowText(MonsterAttributeDisplaySetting rowSetting, string valueText)
+    {
+        string label = rowSetting != null && !string.IsNullOrWhiteSpace(rowSetting.labelPrefix)
+            ? rowSetting.labelPrefix.Trim()
+            : string.Empty;
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return valueText ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(valueText))
+        {
+            return label;
+        }
+
+        return $"{label}: {valueText}";
+    }
+
+    string GetMonsterAttributeValueText(MonsterData monsterData, int firstTenRemaining, MonsterAttributeValueType valueType)
+    {
+        if (monsterData == null)
+        {
+            return string.Empty;
+        }
+
+        return valueType switch
+        {
+            MonsterAttributeValueType.AttackType => monsterData.attackType.ToString(),
+            MonsterAttributeValueType.Accuracy => monsterData.attackAccuracy.ToString("N0"),
+            MonsterAttributeValueType.MaxHit => monsterData.maxHit.ToString(),
+            MonsterAttributeValueType.DamageReductionPercent => $"{monsterData.damageReductionPercent}%",
+            MonsterAttributeValueType.MeleeEvasion => monsterData.meleeEvasion.ToString("N0"),
+            MonsterAttributeValueType.RangedEvasion => monsterData.rangedEvasion.ToString("N0"),
+            MonsterAttributeValueType.MagicEvasion => monsterData.magicEvasion.ToString("N0"),
+            MonsterAttributeValueType.EvasionSummary => $"{monsterData.meleeEvasion:N0} / {monsterData.rangedEvasion:N0} / {monsterData.magicEvasion:N0}",
+            MonsterAttributeValueType.FirstTenBonusDefeats => firstTenRemaining.ToString(),
+            _ => string.Empty
+        };
+    }
+
+    void ClearMonsterAttributeSlots()
+    {
+        if (monsterAttributeSettings == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < monsterAttributeSettings.Count; i++)
+        {
+            MonsterAttributeDisplaySetting rowSetting = monsterAttributeSettings[i];
+            if (rowSetting == null || rowSetting.slot == null)
+            {
+                continue;
+            }
+
+            rowSetting.slot.Set(null, string.Empty);
+        }
+    }
+
+    void SetStatsEntry(StatsDisplayText display, string label, string value)
+    {
+        if (display == null)
+        {
+            return;
+        }
+
+        display.Set(label, value);
+        display.gameObject.SetActive(!string.IsNullOrWhiteSpace(value));
+    }
+
+    void ClearMonsterStatsDisplay()
+    {
+        SetStatsEntry(monsterStats?.attackType, "Attack Type", string.Empty);
+        SetStatsEntry(monsterStats?.accuracy, "Accuracy", string.Empty);
+        SetStatsEntry(monsterStats?.maxHit, "Max Hit", string.Empty);
+        SetStatsEntry(monsterStats?.evasion, "Evasion", string.Empty);
+        SetStatsEntry(monsterStats?.damageReduction, "Damage Reduction", string.Empty);
+        SetStatsEntry(monsterStats?.firstTenBonusDefeats, "First 10 Bonus Defeats", string.Empty);
+    }
 }

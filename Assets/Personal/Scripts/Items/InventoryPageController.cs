@@ -23,6 +23,7 @@ public class InventoryCategoryPage
 public class InventoryPageController : MonoBehaviour
 {
     [Title("Dependencies")]
+    [SerializeField] bool enableVerboseLogging = true;
     public InventoryManager inventory;
     public ItemCardsView itemCardsView;
     public ItemDetailPage itemDetailPage;
@@ -57,14 +58,27 @@ public class InventoryPageController : MonoBehaviour
 
     void Start()
     {
+        LogVerbose("Start called.");
+
+        if (InventoryManager.Instance != null && inventory != null && inventory != InventoryManager.Instance)
+        {
+            LogVerboseWarning($"Assigned inventory reference differs from singleton. Assigned id: {inventory.GetInstanceID()}, singleton id: {InventoryManager.Instance.GetInstanceID()}. Using singleton to keep grant and view paths aligned.");
+            inventory = InventoryManager.Instance;
+        }
+
         if (inventory == null)
         {
             inventory = InventoryManager.Instance;
         }
 
+        LogVerbose(inventory != null
+            ? $"Resolved inventory reference id: {inventory.GetInstanceID()}."
+            : "Inventory reference is null at Start.");
+
         if (inventory != null)
         {
             inventory.OnInventoryChanged += HandleInventoryChanged;
+            LogVerbose("Subscribed to InventoryManager.OnInventoryChanged.");
         }
 
         if (itemDetailPage != null)
@@ -90,6 +104,7 @@ public class InventoryPageController : MonoBehaviour
         if (inventory != null)
         {
             inventory.OnInventoryChanged -= HandleInventoryChanged;
+            LogVerbose("Unsubscribed from InventoryManager.OnInventoryChanged.");
         }
 
         if (itemDetailPage != null)
@@ -105,6 +120,8 @@ public class InventoryPageController : MonoBehaviour
 
     void InitCategoryButtons()
     {
+        LogVerbose($"Initializing category buttons. Configured category pages: {categoryPages.Count}.");
+
         for (int i = 0; i < categoryPages.Count; i++)
         {
             InventoryCategoryPage categoryPage = categoryPages[i];
@@ -121,21 +138,28 @@ public class InventoryPageController : MonoBehaviour
             {
                 currentCategory = category;
                 itemCardsView.FilterByCategory(category);
+                LogVerbose($"Category button clicked. Active category: {category}.");
             });
         }
 
-        // Set initial category filter to the first category page if available
-        if (categoryPages.Count > 0)
+        // Default to showing all items to avoid newly granted items appearing "missing" behind a category filter.
+        currentCategory = Catalog_ItemType.None;
+        if (itemCardsView != null)
         {
-            currentCategory = categoryPages[0].category;
             itemCardsView.FilterByCategory(currentCategory);
         }
+        LogVerbose("Default category set to None (show all).");
 
-        allCategoryButton.onClick.AddListener(() =>
+        if (allCategoryButton != null)
         {
-            currentCategory = Catalog_ItemType.None; // Assuming None means show all categories
-            itemCardsView.FilterByCategory(currentCategory);
-        });
+            allCategoryButton.onClick.RemoveAllListeners();
+            allCategoryButton.onClick.AddListener(() =>
+            {
+                currentCategory = Catalog_ItemType.None;
+                itemCardsView.FilterByCategory(currentCategory);
+                LogVerbose("All category button clicked. Showing all categories.");
+            });
+        }
     }
 
     void InitSortControls()
@@ -199,12 +223,14 @@ public class InventoryPageController : MonoBehaviour
     void OnFilterDropdownChanged(int index)
     {
         _sortMode = (InventorySortMode)index;
+        LogVerbose($"Sort mode changed to {_sortMode}.");
         RebuildInventoryView();
     }
 
     void OnDirectionToggleClicked()
     {
         _sortAscending = !_sortAscending;
+        LogVerbose($"Sort direction changed. Ascending: {_sortAscending}.");
         UpdateArrowIndicator();
         RebuildInventoryView();
     }
@@ -213,9 +239,18 @@ public class InventoryPageController : MonoBehaviour
     {
         if (!_isSellMode) return;
 
+        LogVerbose($"Sell clicked. Selected item count: {_selectedForSell.Count}.");
+
+        if (inventory == null)
+        {
+            LogVerboseError("Cannot process sell: inventory reference is null.");
+            return;
+        }
+
         foreach (ItemsData item in _selectedForSell)
         {
             int amount = inventory.GetQuantity(item);
+            LogVerbose($"Sell request emitted for {item?.displayName ?? "Unknown"} with quantity {amount}.");
             SellRequested?.Invoke(item, amount);
         }
 
@@ -226,6 +261,7 @@ public class InventoryPageController : MonoBehaviour
     {
         _isSellMode = true;
         _selectedForSell.Clear();
+        LogVerbose("Entered sell mode.");
         RebuildInventoryView();
         UpdateActionButtons();
     }
@@ -234,6 +270,7 @@ public class InventoryPageController : MonoBehaviour
     {
         _isSellMode = false;
         _selectedForSell.Clear();
+        LogVerbose("Exited sell mode.");
         RebuildInventoryView();
         UpdateActionButtons();
     }
@@ -247,11 +284,13 @@ public class InventoryPageController : MonoBehaviour
         {
             _selectedForSell.Remove(itemData);
             card?.SetSellSelected(false);
+            LogVerbose($"Removed item from sell selection: {itemData.displayName}.");
         }
         else
         {
             _selectedForSell.Add(itemData);
             card?.SetSellSelected(true);
+            LogVerbose($"Added item to sell selection: {itemData.displayName}.");
         }
     }
 
@@ -298,19 +337,34 @@ public class InventoryPageController : MonoBehaviour
     {
         if (inventory == null || itemCardsView == null)
         {
+            LogVerboseWarning($"Rebuild skipped. inventory null: {inventory == null}, itemCardsView null: {itemCardsView == null}.");
             return;
         }
 
+        List<ItemsInstance> sortedItems = GetSortedItems();
+        int trackedCount = sortedItems.Count;
+        int positiveCount = 0;
+        for (int i = 0; i < sortedItems.Count; i++)
+        {
+            ItemsInstance instance = sortedItems[i];
+            if (instance != null && instance.itemData != null && instance.quantity > 0)
+            {
+                positiveCount++;
+            }
+        }
+
         System.Action<ItemsData> callback = _isSellMode ? (System.Action<ItemsData>) HandleSellModeItemSelected : HandleItemSelected;
-        itemCardsView.Rebuild(GetSortedItems(), callback);
+        itemCardsView.Rebuild(sortedItems, callback);
         itemCardsView.ApplySellMode(_isSellMode, _selectedForSell);
         itemCardsView.FilterByCategory(currentCategory);
+        LogVerbose($"Rebuild complete. Sort mode: {_sortMode}, ascending: {_sortAscending}, tracked items: {trackedCount}, positive quantity items: {positiveCount}, category filter: {currentCategory}, sell mode: {_isSellMode}.");
     }
 
 
     public void ShowInventoryPage()
     {
         selectedItem = null;
+        LogVerbose("Showing inventory page.");
 
         cardViewManager?.ShowScrollView(inventoryViewIndex);
         itemDetailPage?.Clear();
@@ -321,6 +375,7 @@ public class InventoryPageController : MonoBehaviour
     {
         if (itemData == null || itemDetailPage == null)
         {
+            LogVerboseWarning($"ShowDetailPage skipped. itemData null: {itemData == null}, itemDetailPage null: {itemDetailPage == null}.");
             return;
         }
 
@@ -328,22 +383,26 @@ public class InventoryPageController : MonoBehaviour
 
         selectedItem = itemData;
         itemDetailPage.Display(itemData, GetQuantity(itemData));
+        LogVerbose($"Showing detail page for {itemData.displayName} with quantity {GetQuantity(itemData)}.");
         UpdateActionButtons();
     }
 
     void HandleInventoryChanged()
     {
+        LogVerbose("Inventory changed event received.");
         RebuildInventoryView();
         RefreshSelectedItem();
     }
 
     void HandleItemSelected(ItemsData itemData)
     {
+        LogVerbose($"Item selected: {itemData?.displayName ?? "Unknown"}.");
         ShowDetailPage(itemData);
     }
 
     void HandleDetailCloseRequested()
     {
+        LogVerbose("Detail close requested.");
         ShowInventoryPage();
     }
 
@@ -355,6 +414,7 @@ public class InventoryPageController : MonoBehaviour
         }
 
         int quantity = GetQuantity(selectedItem);
+        LogVerbose($"Refreshing selected item {selectedItem.displayName}. Current quantity: {quantity}.");
         if (quantity <= 0)
         {
             ShowInventoryPage();
@@ -375,5 +435,35 @@ public class InventoryPageController : MonoBehaviour
         }
 
         return inventory.GetQuantity(itemData);
+    }
+
+    void LogVerbose(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.Log("InventoryPageController", message);
+    }
+
+    void LogVerboseWarning(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.LogWarning("InventoryPageController", message);
+    }
+
+    void LogVerboseError(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.LogError("InventoryPageController", message);
     }
 }

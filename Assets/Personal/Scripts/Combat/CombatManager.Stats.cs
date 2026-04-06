@@ -45,6 +45,11 @@ public partial class CombatManager
         return Mathf.Clamp(GetCombinedCombatBonuses().damageReductionPercent, 0, 80);
     }
 
+    public int GetFoodCooldownModifierPercent()
+    {
+        return GetCombinedCombatBonuses().foodCooldownModifierPercent;
+    }
+
     public float GetPlayerAttackInterval()
     {
         ItemsData weaponItem = profile.loadout != null ? profile.loadout.weapon : null;
@@ -106,14 +111,15 @@ public partial class CombatManager
             }
         }
 
-        if (IsPotionActive() && profile.activePotionItem != null && profile.activePotionItem.combatData != null)
+        foreach (PotionEffectData potionEffect in EnumerateActivePotionEffects())
         {
-            PotionEffectData potionEffect = profile.activePotionItem.combatData.potionEffect;
-            if (potionEffect != null)
+            if (potionEffect == null)
             {
-                potionEffect.EnsureInitialized();
-                combined.Add(potionEffect.statBonuses);
+                continue;
             }
+
+            potionEffect.EnsureInitialized();
+            combined.Add(potionEffect.statBonuses);
         }
 
         return combined;
@@ -148,24 +154,45 @@ public partial class CombatManager
 
     int GetPotionLevelBonus(CombatSkillType skillType)
     {
-        if (!IsPotionActive() || profile.activePotionItem == null || profile.activePotionItem.combatData == null)
+        int totalBonus = 0;
+        foreach (PotionEffectData potionEffect in EnumerateActivePotionEffects())
         {
-            return 0;
+            if (potionEffect == null)
+            {
+                continue;
+            }
+
+            totalBonus += skillType switch
+            {
+                CombatSkillType.Attack => potionEffect.attackLevelBonus,
+                CombatSkillType.Strength => potionEffect.strengthLevelBonus,
+                CombatSkillType.Defence => potionEffect.defenceLevelBonus,
+                CombatSkillType.Range => potionEffect.rangeLevelBonus,
+                _ => 0
+            };
         }
 
-        PotionEffectData potionEffect = profile.activePotionItem.combatData.potionEffect;
-        if (potionEffect == null)
-        {
-            return 0;
-        }
+        return totalBonus;
+    }
 
-        return skillType switch
+    System.Collections.Generic.IEnumerable<PotionEffectData> EnumerateActivePotionEffects()
+    {
+        float now = Time.unscaledTime;
+        for (int i = 0; i < profile.activePotionEffects.Count; i++)
         {
-            CombatSkillType.Attack => potionEffect.attackLevelBonus,
-            CombatSkillType.Strength => potionEffect.strengthLevelBonus,
-            CombatSkillType.Defence => potionEffect.defenceLevelBonus,
-            CombatSkillType.Range => potionEffect.rangeLevelBonus,
-            _ => 0
-        };
+            ActivePotionEffectState effectState = profile.activePotionEffects[i];
+            if (effectState == null || effectState.sourceItem == null || effectState.expiresAt <= now)
+            {
+                continue;
+            }
+
+            CombatItemDefinition combatData = effectState.sourceItem.combatData;
+            if (combatData == null || combatData.itemRole != CombatItemRole.Potion)
+            {
+                continue;
+            }
+
+            yield return combatData.potionEffect;
+        }
     }
 }

@@ -70,6 +70,8 @@ public class CombatStatBonuses
     public int rangedEvasionBonus;
     public int magicEvasionBonus;
     public int damageReductionPercent;
+    // Positive values reduce food cooldown delay, negative values increase it.
+    public int foodCooldownModifierPercent;
 
     public void Add(CombatStatBonuses other)
     {
@@ -86,6 +88,7 @@ public class CombatStatBonuses
         rangedEvasionBonus += other.rangedEvasionBonus;
         magicEvasionBonus += other.magicEvasionBonus;
         damageReductionPercent += other.damageReductionPercent;
+        foodCooldownModifierPercent += other.foodCooldownModifierPercent;
     }
 
     public static CombatStatBonuses Combine(params CombatStatBonuses[] bonuses)
@@ -114,6 +117,9 @@ public class FoodEffectData
 [Serializable]
 public class PotionEffectData
 {
+    // Unique effect identity used to prevent duplicate effect stacking.
+    public string effectId;
+
     [Min(0f)] public float durationSeconds = 30f;
     public int attackLevelBonus;
     public int strengthLevelBonus;
@@ -123,6 +129,7 @@ public class PotionEffectData
 
     public void EnsureInitialized()
     {
+        effectId = string.IsNullOrWhiteSpace(effectId) ? string.Empty : effectId.Trim();
         statBonuses ??= new CombatStatBonuses();
     }
 }
@@ -132,8 +139,6 @@ public class CombatItemDefinition
 {
     [HideInInspector] public CombatItemRole itemRole = CombatItemRole.None;
     [HideInInspector] public Catalog_ItemType sourceItemType = Catalog_ItemType.None;
-
-    [HideInInspector] public List<CombatEquipSlot> allowedEquipSlots = new();
 
     [ShowField(nameof(UsesSelectableEquipmentSlot))]
     public CombatEquipmentSlot equipmentSlot = CombatEquipmentSlot.None;
@@ -208,7 +213,6 @@ public class CombatItemDefinition
 
     public void EnsureInitialized()
     {
-        allowedEquipSlots ??= new List<CombatEquipSlot>();
         statBonuses ??= new CombatStatBonuses();
         foodEffect ??= new FoodEffectData();
         potionEffect ??= new PotionEffectData();
@@ -227,50 +231,7 @@ public class CombatItemDefinition
             ConditionRuleUtility.EnsureConditionRuleType(entry);
         }
 
-        if (allowedEquipSlots.Count > 0)
-        {
-            equipmentSlot = GetLegacyEquipmentSlot();
-            allowedEquipSlots.Clear();
-        }
         ApplyItemTypeConstraints();
-    }
-
-    CombatEquipmentSlot GetLegacyEquipmentSlot()
-    {
-        if (allowedEquipSlots == null)
-        {
-            return CombatEquipmentSlot.None;
-        }
-
-        for (int i = 0; i < allowedEquipSlots.Count; i++)
-        {
-            CombatEquipSlot slot = allowedEquipSlots[i];
-            switch (slot)
-            {
-                case CombatEquipSlot.Weapon:
-                    return CombatEquipmentSlot.Weapon;
-                case CombatEquipSlot.Offhand:
-                    return CombatEquipmentSlot.Offhand;
-                case CombatEquipSlot.Helmet:
-                    return CombatEquipmentSlot.Helmet;
-                case CombatEquipSlot.Body:
-                    return CombatEquipmentSlot.Body;
-                case CombatEquipSlot.Legs:
-                    return CombatEquipmentSlot.Legs;
-                case CombatEquipSlot.Gloves:
-                    return CombatEquipmentSlot.Gloves;
-                case CombatEquipSlot.Boots:
-                    return CombatEquipmentSlot.Boots;
-                case CombatEquipSlot.Cape:
-                    return CombatEquipmentSlot.Cape;
-                case CombatEquipSlot.Ammo:
-                    return CombatEquipmentSlot.Ammo;
-                case CombatEquipSlot.Utility:
-                    return CombatEquipmentSlot.Utility;
-            }
-        }
-
-        return equipmentSlot;
     }
 
     public void SynchronizeWithItemType(Catalog_ItemType itemType)
@@ -379,6 +340,7 @@ public class CombatSkillProgress
 public class EquipmentLoadout
 {
     public const int UtilitySlotCount = 3;
+    public const int PotionSlotCount = 3;
 
     public ItemsData weapon;
     public ItemsData offhand;
@@ -390,11 +352,22 @@ public class EquipmentLoadout
     public ItemsData cape;
     public ItemsData ammo;
     public ItemsData food;
-    public ItemsData potion;
+    public List<ItemsData> potionSlots = new();
     public List<ItemsData> utilitySlots = new();
 
     public void EnsureInitialized()
     {
+        potionSlots ??= new List<ItemsData>();
+        while (potionSlots.Count < PotionSlotCount)
+        {
+            potionSlots.Add(null);
+        }
+
+        while (potionSlots.Count > PotionSlotCount)
+        {
+            potionSlots.RemoveAt(potionSlots.Count - 1);
+        }
+
         utilitySlots ??= new List<ItemsData>();
         while (utilitySlots.Count < UtilitySlotCount)
         {
@@ -405,6 +378,26 @@ public class EquipmentLoadout
         {
             utilitySlots.RemoveAt(utilitySlots.Count - 1);
         }
+    }
+
+    public ItemsData GetPotionSlot(int potionIndex)
+    {
+        if (potionIndex < 0 || potionIndex >= potionSlots.Count)
+        {
+            return null;
+        }
+
+        return potionSlots[potionIndex];
+    }
+
+    public void SetPotionSlot(int potionIndex, ItemsData itemData)
+    {
+        if (potionIndex < 0 || potionIndex >= potionSlots.Count)
+        {
+            return;
+        }
+
+        potionSlots[potionIndex] = itemData;
     }
 
     public ItemsData GetItem(CombatEquipSlot slot, int utilityIndex = -1)
@@ -421,7 +414,7 @@ public class EquipmentLoadout
             CombatEquipSlot.Cape => cape,
             CombatEquipSlot.Ammo => ammo,
             CombatEquipSlot.Food => food,
-            CombatEquipSlot.Potion => potion,
+            CombatEquipSlot.Potion => utilityIndex >= 0 ? GetPotionSlot(utilityIndex) : GetPotionSlot(0),
             CombatEquipSlot.Utility => utilityIndex >= 0 && utilityIndex < utilitySlots.Count ? utilitySlots[utilityIndex] : null,
             _ => null
         };
@@ -462,7 +455,7 @@ public class EquipmentLoadout
                 food = itemData;
                 break;
             case CombatEquipSlot.Potion:
-                potion = itemData;
+                SetPotionSlot(utilityIndex >= 0 ? utilityIndex : 0, itemData);
                 break;
             case CombatEquipSlot.Utility:
                 if (utilityIndex >= 0 && utilityIndex < utilitySlots.Count)
@@ -485,13 +478,25 @@ public class EquipmentLoadout
         yield return (CombatEquipSlot.Cape, -1, cape);
         yield return (CombatEquipSlot.Ammo, -1, ammo);
         yield return (CombatEquipSlot.Food, -1, food);
-        yield return (CombatEquipSlot.Potion, -1, potion);
+
+        for (int i = 0; i < potionSlots.Count; i++)
+        {
+            yield return (CombatEquipSlot.Potion, i, potionSlots[i]);
+        }
 
         for (int i = 0; i < utilitySlots.Count; i++)
         {
             yield return (CombatEquipSlot.Utility, i, utilitySlots[i]);
         }
     }
+}
+
+[Serializable]
+public class ActivePotionEffectState
+{
+    public string effectId;
+    public ItemsData sourceItem;
+    public float expiresAt;
 }
 
 [Serializable]
@@ -505,15 +510,40 @@ public class CombatProfile
     public EquipmentLoadout loadout = new();
     public int currentHp;
     public float foodCooldownEndsAt;
-    public float potionExpiresAt;
+
+    // Active potion effects are now tracked independently and can run concurrently.
+    public List<ActivePotionEffectState> activePotionEffects = new();
+
+    // Auto-use toggles map to potion slot indices.
+    public List<bool> potionAutoUseEnabled = new();
+
+    // Global food auto-use settings.
+    public bool foodAutoUseEnabled;
+    [Range(0f, 1f)] public float foodAutoUseThresholdPercent = 0.35f;
+
     public float deathDebuffExpiresAt;
-    public ItemsData activePotionItem;
     public bool isInitialized;
 
     public void EnsureInitialized()
     {
         loadout ??= new EquipmentLoadout();
         loadout.EnsureInitialized();
+
+        activePotionEffects ??= new List<ActivePotionEffectState>();
+        activePotionEffects.RemoveAll(effect => effect == null || effect.sourceItem == null);
+
+        potionAutoUseEnabled ??= new List<bool>();
+        while (potionAutoUseEnabled.Count < EquipmentLoadout.PotionSlotCount)
+        {
+            potionAutoUseEnabled.Add(false);
+        }
+
+        while (potionAutoUseEnabled.Count > EquipmentLoadout.PotionSlotCount)
+        {
+            potionAutoUseEnabled.RemoveAt(potionAutoUseEnabled.Count - 1);
+        }
+
+        foodAutoUseThresholdPercent = Mathf.Clamp01(foodAutoUseThresholdPercent);
 
         if (!isInitialized)
         {

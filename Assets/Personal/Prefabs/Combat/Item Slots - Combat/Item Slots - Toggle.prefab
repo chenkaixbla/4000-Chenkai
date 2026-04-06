@@ -246,7 +246,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1576557193610100542, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_Name
-      value: Item Slots Variant
+      value: 'Item Slots - Toggle [None]'
       objectReference: {fileID: 0}
     - target: {fileID: 1911988081468607620, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_Pivot.x
@@ -327,6 +327,18 @@ PrefabInstance:
     - target: {fileID: 1911988081468607620, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5847366317684114232, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
+      propertyPath: autoUseToggle
+      value: 
+      objectReference: {fileID: 7768111636096210050}
+    - target: {fileID: 6509975624057487130, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8523044828785836541, guid: d27e40d037d65ef4296fdfb1b886c51f, type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -25,6 +25,7 @@ public class MonsterData : ScriptableObject
     [Title("General")]
     public string guid;
     public string displayName;
+    [TextArea(2, 6)] public string description;
     [AssetPreview] public Sprite icon;
 
     [Title("Combat")]

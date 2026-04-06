@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using EditorAttributes;
 using UnityEngine;
 
 public class InventoryManager : MonoBehaviour
@@ -8,36 +7,35 @@ public class InventoryManager : MonoBehaviour
     public event System.Action OnInventoryChanged;
 
     public List<ItemsInstance> itemInstances = new();
+    [SerializeField] bool enableVerboseLogging = true;
     int _addedOrderCounter = 0;
-    [PropertyDropdown] public List<ItemsData> allItems = new();   // List of all items in the game, used for reference when adding items to the inventory
+
     void Awake()
     {
-        Instance = this;
-    }
+        if (Instance != null && Instance != this)
+        {
+            LogVerboseWarning($"Replacing previous InventoryManager singleton. Previous instance id: {Instance.GetInstanceID()}, new instance id: {GetInstanceID()}.");
+        }
 
-    public ItemsInstance AddItem(int itemID, int quantity = 1)
-    {
-        ItemsData itemData = GetItem(itemID);
-        if (itemData != null)
-        {
-            return AddItem(itemData, quantity);
-        }
-        else
-        {
-            Debug.LogWarning($"Item with ID {itemID} not found in allItems list.");
-        }
-        
-        return null;
+        Instance = this;
+        LogVerbose($"Awake complete. tracked inventory entries: {itemInstances.Count}.");
     }
 
     public ItemsInstance AddItem(ItemsData itemData, int quantity = 1)
     {
         if (itemData == null)
         {
-            Debug.LogWarning("Cannot add a null item to the inventory.");
+            LogVerboseWarning("AddItem failed: itemData is null.");
             return null;
         }
 
+        if (quantity <= 0)
+        {
+            LogVerboseWarning($"AddItem ignored: non-positive quantity {quantity} for item {itemData.displayName}.");
+            return null;
+        }
+
+        int previousQuantity = GetQuantity(itemData);
         ItemsInstance inst = itemInstances.Find(instance => instance.itemData == itemData);
 
         if (inst != null)
@@ -52,12 +50,15 @@ public class InventoryManager : MonoBehaviour
             itemInstances.Add(inst);
         }
 
+        int newQuantity = GetQuantity(itemData);
+        LogVerbose($"AddItem success: {itemData.displayName} +{quantity}. Previous quantity: {previousQuantity}, new quantity: {newQuantity}. Tracked entries: {itemInstances.Count}.");
         NotifyInventoryChanged();
         return inst;
     }
 
     public bool RemoveItem(int itemID, out ItemsData itemData, int quantity = 1)
     {
+        LogVerbose($"RemoveItem by id requested. itemID: {itemID}, quantity: {quantity}.");
         ItemsInstance inst = GetInstance(itemID);
         itemData = null;
 
@@ -67,7 +68,7 @@ public class InventoryManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"Item with ID {itemID} not found in inventory.");
+            LogVerboseWarning($"RemoveItem failed: item id {itemID} not found in inventory.");
         }
 
         return false;
@@ -82,6 +83,7 @@ public class InventoryManager : MonoBehaviour
             if (itemInstance.quantity >= quantity)
             {
                 itemData = itemInstance.itemData;
+                int previousQuantity = itemInstance.quantity;
                 itemInstance.AddQuantity(-quantity);
 
                 if (itemInstance.quantity <= 0)
@@ -89,25 +91,23 @@ public class InventoryManager : MonoBehaviour
                     itemInstances.Remove(itemInstance);
                 }
 
+                int newQuantity = itemData != null ? GetQuantity(itemData) : 0;
+                LogVerbose($"RemoveItem success: {itemData?.displayName ?? "Unknown"} -{quantity}. Previous quantity: {previousQuantity}, new quantity: {newQuantity}. Tracked entries: {itemInstances.Count}.");
+
                 NotifyInventoryChanged();
                 return true;
             }
             else
             {
-                Debug.LogWarning($"Not enough quantity of {itemInstance.itemData.displayName} to remove. Requested: {quantity}, Available: {itemInstance.quantity}");
+                LogVerboseWarning($"RemoveItem failed: not enough quantity for {itemInstance.itemData.displayName}. Requested: {quantity}, available: {itemInstance.quantity}.");
             }
         }
         else
         {
-            Debug.LogWarning("Item instance is null.");
+            LogVerboseWarning("RemoveItem failed: itemInstance is null.");
         }
 
         return false;
-    }
-
-    public ItemsData GetItem(int id)
-    {
-        return allItems.Find(item => item.itemID == id);
     }
 
     public ItemsInstance GetInstance(int id)
@@ -138,6 +138,27 @@ public class InventoryManager : MonoBehaviour
 
     void NotifyInventoryChanged()
     {
+        LogVerbose($"OnInventoryChanged invoked. Tracked entries: {itemInstances.Count}.");
         OnInventoryChanged?.Invoke();
+    }
+
+    void LogVerbose(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.Log("InventoryManager", message);
+    }
+
+    void LogVerboseWarning(string message)
+    {
+        if (!enableVerboseLogging)
+        {
+            return;
+        }
+
+        VerboseProjectLogger.LogWarning("InventoryManager", message);
     }
 }
