@@ -5,6 +5,8 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ItemsData", menuName = "Game/ItemsData")]
 public class ItemsData : ScriptableObject
 {
+    [AssetPreview(previewHeight: 64)] public Sprite icon;
+    
     [Title("General")]
     public Catalog_ItemType itemType = Catalog_ItemType.Resource;
     public int itemID;
@@ -14,10 +16,20 @@ public class ItemsData : ScriptableObject
     [Title("Shop")]
     [Min(0)] public int price = 0;
     public List<ConditionRuleEntry> purchaseRequirements = new();
-    [AssetPreview] public Sprite icon;
+    
 
     [Title("Combat")]
+    [MessageBox("Combat data is only used for Weapon, Armor, Food, Potion, and Utility items.", nameof(HidesCombatData), MessageMode.Warning)]
+    [SerializeField] private Void combatDataMessageBox;
+    [ShowField(nameof(UsesCombatData))]
     public CombatItemDefinition combatData = new();
+
+    public bool UsesCombatData => itemType is Catalog_ItemType.Weapon
+        or Catalog_ItemType.Armor
+        or Catalog_ItemType.Food
+        or Catalog_ItemType.Potion
+        or Catalog_ItemType.Utility;
+    public bool HidesCombatData => !UsesCombatData;
 
     void OnEnable()
     {

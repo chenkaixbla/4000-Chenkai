@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ba601120d7a5c545a92afa04d787212, type: 3}
   m_Name: Gold Sword
   m_EditorClassIdentifier: Assembly-CSharp::ItemsData
-  itemType: 5
+  icon: {fileID: 21300000, guid: 6a3876f528beaae4bafcf9eb42ddb0ed, type: 3}
+  itemType: 0
   itemID: 1000
   displayName: Gold Sword
   itemDescriptions: fdsafsdfadsfas
   price: 0
   purchaseRequirements: []
-  icon: {fileID: 21300000, guid: 6a3876f528beaae4bafcf9eb42ddb0ed, type: 3}
   combatData:
-    itemRole: 3
-    sourceItemType: 5
+    itemRole: 0
+    sourceItemType: 0
     equipmentSlot: 0
     weaponAttackType: 0
     attackIntervalSeconds: 2.4

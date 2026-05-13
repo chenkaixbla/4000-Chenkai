@@ -4,6 +4,7 @@ using EditorAttributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 public enum InventorySortMode
 {
@@ -29,10 +30,11 @@ public class InventoryPageController : MonoBehaviour
     public ItemDetailPage itemDetailPage;
 
     [Title("Page Navigation")]
-    public CardViewManager cardViewManager;
+    [FormerlySerializedAs("cardViewManager")]
+    public Menu_MainViewManager menuViewManager;
     public Button inventoryButton;
-    public int inventoryViewIndex = 0;
-    public int detailViewIndex = 1;
+    [SerializeField, Dropdown(nameof(GetViewPanelNames))] string inventoryPanelName;
+    [SerializeField, Dropdown(nameof(GetViewPanelNames))] string detailPanelName;
 
     [Title("Categories")]
     public Button allCategoryButton;
@@ -59,6 +61,11 @@ public class InventoryPageController : MonoBehaviour
     void Start()
     {
         LogVerbose("Start called.");
+
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
 
         if (InventoryManager.Instance != null && inventory != null && inventory != InventoryManager.Instance)
         {
@@ -366,7 +373,7 @@ public class InventoryPageController : MonoBehaviour
         selectedItem = null;
         LogVerbose("Showing inventory page.");
 
-        cardViewManager?.ShowScrollView(inventoryViewIndex);
+        ShowConfiguredPanel(inventoryPanelName);
         itemDetailPage?.Clear();
         UpdateActionButtons();
     }
@@ -379,7 +386,7 @@ public class InventoryPageController : MonoBehaviour
             return;
         }
 
-        cardViewManager?.ShowScrollView(detailViewIndex, hideOthers: false);
+        ShowConfiguredPanel(detailPanelName);
 
         selectedItem = itemData;
         itemDetailPage.Display(itemData, GetQuantity(itemData));
@@ -465,5 +472,36 @@ public class InventoryPageController : MonoBehaviour
         }
 
         VerboseProjectLogger.LogError("InventoryPageController", message);
+    }
+
+    void ShowConfiguredPanel(string panelName)
+    {
+        if (string.IsNullOrWhiteSpace(panelName))
+        {
+            return;
+        }
+
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        if (menuViewManager == null)
+        {
+            LogVerboseWarning($"Cannot show panel '{panelName}' because {nameof(Menu_MainViewManager)} is missing.");
+            return;
+        }
+
+        menuViewManager.ShowPanel(panelName);
+    }
+
+    string[] GetViewPanelNames()
+    {
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        return menuViewManager != null ? menuViewManager.GetPanelNames() : System.Array.Empty<string>();
     }
 }

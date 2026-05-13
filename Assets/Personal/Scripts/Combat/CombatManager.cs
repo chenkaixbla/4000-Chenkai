@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using EditorAttributes;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 public partial class CombatManager : MonoBehaviour
 {
@@ -13,10 +14,11 @@ public partial class CombatManager : MonoBehaviour
 
     [Title("Dependencies")]
     public InventoryManager inventory;
-    public CardViewManager cardViewManager;
+    [FormerlySerializedAs("cardViewManager")]
+    public Menu_MainViewManager menuViewManager;
     public Button combatButton;
     public CombatPageController pageController;
-    public int combatViewIndex = 4;
+    [SerializeField, Dropdown(nameof(GetViewPanelNames))] string combatPanelName;
 
     [Title("Data")]
     public List<MonsterData> monsterDatas = new();
@@ -61,6 +63,11 @@ public partial class CombatManager : MonoBehaviour
 
     void Start()
     {
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
         if (inventory == null)
         {
             inventory = InventoryManager.Instance;
@@ -192,10 +199,7 @@ public partial class CombatManager : MonoBehaviour
 
     public void ShowCombatPage()
     {
-        if (cardViewManager != null)
-        {
-            cardViewManager.ShowScrollView(combatViewIndex);
-        }
+        ShowConfiguredPanel(combatPanelName);
 
         pageController?.RefreshAll();
         NotifyStateChanged();
@@ -510,5 +514,35 @@ public partial class CombatManager : MonoBehaviour
         }
 
         VerboseProjectLogger.LogError("CombatManager", message);
+    }
+
+    void ShowConfiguredPanel(string panelName)
+    {
+        if (string.IsNullOrWhiteSpace(panelName))
+        {
+            return;
+        }
+
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        if (menuViewManager == null)
+        {
+            return;
+        }
+
+        menuViewManager.ShowPanel(panelName);
+    }
+
+    string[] GetViewPanelNames()
+    {
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        return menuViewManager != null ? menuViewManager.GetPanelNames() : Array.Empty<string>();
     }
 }

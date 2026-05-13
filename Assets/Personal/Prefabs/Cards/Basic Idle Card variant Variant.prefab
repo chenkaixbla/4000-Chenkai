@@ -1212,7 +1212,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 363653879749085339, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
       propertyPath: m_fontSize
-      value: 20.45
+      value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 2219722119090533573, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1514,16 +1514,16 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 4591329357604491078, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
-      insertIndex: 6
+      insertIndex: -1
       addedObject: {fileID: 6671374779136735613}
     - targetCorrespondingSourceObject: {fileID: 4591329357604491078, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
-      insertIndex: 7
+      insertIndex: -1
       addedObject: {fileID: 7248741308672211979}
     - targetCorrespondingSourceObject: {fileID: 4591329357604491078, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
-      insertIndex: 8
+      insertIndex: -1
       addedObject: {fileID: 1416453548342414310}
     - targetCorrespondingSourceObject: {fileID: 4591329357604491078, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
-      insertIndex: 9
+      insertIndex: -1
       addedObject: {fileID: 3394065279883647670}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}

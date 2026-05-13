@@ -11,17 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
   m_Name: IdleData
-  m_EditorClassIdentifier: Assembly-CSharp::IdleData
+  m_EditorClassIdentifier: Assembly-CSharp::Idle_Data
+  icon: {fileID: 21300000, guid: 5f7f9aff1f965e045afaeea2d19ca9c8, type: 3}
   guid: 9747376f-7597-4d00-b4e9-1ff2358f2cd8
   displayName: xp tree 8
   interval: 12
-  xpReward: 220
-  maxXP: 100
-  icon: {fileID: 21300000, guid: 5f7f9aff1f965e045afaeea2d19ca9c8, type: 3}
+  idleXPReward: 100
+  jobXPReward: 50
+  startConditions: []
   finishActions:
   - finishType: 0
     finishAction:
-      rid: 6774941657363906565
+      rid: 5175728975481405518
   finishType: 0
   finishAction:
     rid: -2
@@ -30,8 +31,10 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 6774941657363906565
+    - rid: 5175728975481405518
       type: {class: FinishAction_GiveItem, ns: , asm: Assembly-CSharp}
       data:
-        itemsData: {fileID: 11400000, guid: bc9fd901216fdf548935dfbe2da1f4de, type: 2}
-        quantity: 1
+        itemsData: {fileID: 0}
+        quantity: 0
+        baseDropChance: 1
+        enableVerboseLogging: 1

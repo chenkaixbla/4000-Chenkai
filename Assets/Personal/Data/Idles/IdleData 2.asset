@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
   m_Name: IdleData 2
-  m_EditorClassIdentifier: Assembly-CSharp::IdleData
+  m_EditorClassIdentifier: Assembly-CSharp::Idle_Data
   guid: 9822f7ff-6ca8-41c8-86a5-b0d064016b73
   displayName: xp tree6
   interval: 9

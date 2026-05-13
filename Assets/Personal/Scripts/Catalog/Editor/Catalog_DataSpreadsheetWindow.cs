@@ -38,10 +38,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 150f, 24f };
     private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 75f, 75f, 85f, 220f, 200f, 24f };
 
-    private readonly List<JobData> _jobRows = new();
+    private readonly List<Job_Data> _jobRows = new();
     private readonly List<ItemsData> _itemRows = new();
-    private readonly List<IdleData> _idleRows = new();
-    private readonly Dictionary<int, IdleData> _pendingIdleAdds = new();
+    private readonly List<Idle_Data> _idleRows = new();
+    private readonly Dictionary<int, Idle_Data> _pendingIdleAdds = new();
     private readonly HashSet<int> _selectedJobIds = new();
     private readonly HashSet<int> _selectedItemIds = new();
     private readonly HashSet<int> _selectedIdleAssetIds = new();
@@ -52,7 +52,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private readonly HashSet<int> _expandedIdleAssetFinishActionRows = new();
 
     private Catalog_DataSettings _settings;
-    private JobData _idleCategoryFilterJob;
+    private Job_Data _idleCategoryFilterJob;
 
     private Catalog_Tab _activeTab;
     private Catalog_ItemFilter _itemFilter = Catalog_ItemFilter.All;
@@ -61,9 +61,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private Vector2 _idleScroll;
     private bool _stretchTables = true;
 
-    private JobData _pendingJobToAdd;
+    private Job_Data _pendingJobToAdd;
     private ItemsData _pendingItemToAdd;
-    private IdleData _pendingIdleToAdd;
+    private Idle_Data _pendingIdleToAdd;
 
     [MenuItem("Tools/Catalog/Data Spreadsheet")]
     public static void OpenWindow()
@@ -162,7 +162,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.LabelField("Jobs Category", EditorStyles.boldLabel);
 
         EditorGUILayout.BeginHorizontal();
-        _pendingJobToAdd = (JobData)EditorGUILayout.ObjectField("Add Existing Job", _pendingJobToAdd, typeof(JobData), false);
+        _pendingJobToAdd = (Job_Data)EditorGUILayout.ObjectField("Add Existing Job", _pendingJobToAdd, typeof(Job_Data), false);
         using (new EditorGUI.DisabledScope(_pendingJobToAdd == null))
         {
             if (GUILayout.Button("Add", GUILayout.Width(70f)))
@@ -174,12 +174,12 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New JobData", GUILayout.Width(110f)))
         {
-            JobData created = CreateDataAsset<JobData>(GetSettingsFolderPath(_settings?.jobsDataFolder), "JobData");
+            Job_Data created = CreateDataAsset<Job_Data>(GetSettingsFolderPath(_settings?.jobsDataFolder), "JobData");
             AddUnique(_jobRows, created);
         }
         EditorGUILayout.EndHorizontal();
 
-        DrawDropZone<JobData>(
+        DrawDropZone<Job_Data>(
             "Drop JobData assets here",
             droppedJob =>
             {
@@ -230,7 +230,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("Select All", GUILayout.Width(84f)))
         {
-            foreach (JobData jobData in _jobRows)
+            foreach (Job_Data jobData in _jobRows)
             {
                 if (jobData != null)
                 {
@@ -248,11 +248,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         {
             if (GUILayout.Button("Delete Selected", GUILayout.Width(112f)))
             {
-                List<JobData> selectedJobs = GetSelectedObjects(_jobRows, _selectedJobIds);
+                List<Job_Data> selectedJobs = GetSelectedObjects(_jobRows, _selectedJobIds);
                 if (DeleteAssetsWithConfirmation(selectedJobs, "JobData"))
                 {
                     HashSet<int> deletedIds = new();
-                    foreach (JobData jobData in selectedJobs)
+                    foreach (Job_Data jobData in selectedJobs)
                     {
                         if (jobData != null)
                         {
@@ -282,7 +282,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
     private bool DrawJobRow(int rowIndex, float[] widths, float tableWidth)
     {
-        JobData row = _jobRows[rowIndex];
+        Job_Data row = _jobRows[rowIndex];
         int rowId = row != null ? row.GetInstanceID() : 0;
 
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
@@ -295,7 +295,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         EditorGUI.BeginChangeCheck();
-        JobData changedRow = (JobData)EditorGUILayout.ObjectField(row, typeof(JobData), false, GUILayout.Width(widths[1]));
+        Job_Data changedRow = (Job_Data)EditorGUILayout.ObjectField(row, typeof(Job_Data), false, GUILayout.Width(widths[1]));
         if (EditorGUI.EndChangeCheck())
         {
             if (row != null && changedRow != row)
@@ -348,7 +348,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
         if (removeRow)
         {
-            removeRow = DeleteAssetsWithConfirmation(new List<JobData> { row }, "JobData");
+            removeRow = DeleteAssetsWithConfirmation(new List<Job_Data> { row }, "JobData");
             if (removeRow)
             {
                 _selectedJobIds.Remove(rowId);
@@ -379,7 +379,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return removeRow;
     }
 
-    private void DrawIdleTable(JobData jobData, float tableWidth)
+    private void DrawIdleTable(Job_Data jobData, float tableWidth)
     {
         EnsureIdleList(jobData);
         HashSet<int> selectedIdleIds = GetIdleSelectionSet(jobData);
@@ -387,13 +387,13 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-        EditorGUILayout.LabelField("IdleData Table", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Idle_Data Table", EditorStyles.boldLabel);
 
         int jobId = jobData.GetInstanceID();
-        _pendingIdleAdds.TryGetValue(jobId, out IdleData pendingIdleData);
+        _pendingIdleAdds.TryGetValue(jobId, out Idle_Data pendingIdleData);
 
         EditorGUILayout.BeginHorizontal();
-        pendingIdleData = (IdleData)EditorGUILayout.ObjectField("Add Existing Idle", pendingIdleData, typeof(IdleData), false);
+        pendingIdleData = (Idle_Data)EditorGUILayout.ObjectField("Add Existing Idle", pendingIdleData, typeof(Idle_Data), false);
         using (new EditorGUI.DisabledScope(pendingIdleData == null))
         {
             if (GUILayout.Button("Add", GUILayout.Width(70f)))
@@ -403,17 +403,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
         }
 
-        if (GUILayout.Button("New IdleData", GUILayout.Width(110f)))
+        if (GUILayout.Button("New Idle_Data", GUILayout.Width(110f)))
         {
-            IdleData created = CreateDataAsset<IdleData>(GetSettingsFolderPath(_settings?.idleDataFolder), "IdleData");
+            Idle_Data created = CreateDataAsset<Idle_Data>(GetSettingsFolderPath(_settings?.idleDataFolder), "Idle_Data");
             AddIdleToJob(jobData, created);
         }
         EditorGUILayout.EndHorizontal();
 
         _pendingIdleAdds[jobId] = pendingIdleData;
 
-        DrawDropZone<IdleData>(
-            "Drop IdleData assets here for this job",
+        DrawDropZone<Idle_Data>(
+            "Drop Idle_Data assets here for this job",
             droppedIdleData =>
             {
                 AddIdleToJob(jobData, droppedIdleData);
@@ -449,13 +449,13 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
         else if (removeIndex >= 0)
         {
-            IdleData removedIdleData = jobData.idleDatas[removeIndex];
+            Idle_Data removedIdleData = jobData.idleDatas[removeIndex];
             if (removedIdleData != null)
             {
                 selectedIdleIds.Remove(removedIdleData.GetInstanceID());
             }
 
-            Undo.RecordObject(jobData, "Remove IdleData");
+            Undo.RecordObject(jobData, "Remove Idle_Data");
             jobData.idleDatas.RemoveAt(removeIndex);
             EditorUtility.SetDirty(jobData);
             GetJobIdleFinishActionRows(jobData).Clear();
@@ -468,7 +468,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
         DrawHeaderCell("Sel", widths[0]);
-        DrawHeaderCell("IdleData", widths[1]);
+        DrawHeaderCell("Idle_Data", widths[1]);
         DrawHeaderCell("Display Name", widths[2]);
         DrawHeaderCell("Interval", widths[3]);
         DrawHeaderCell("XP Reward", widths[4]);
@@ -480,7 +480,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    private void DrawIdleBulkActions(JobData jobData, HashSet<int> selectedIdleIds)
+    private void DrawIdleBulkActions(Job_Data jobData, HashSet<int> selectedIdleIds)
     {
         int selectedCount = selectedIdleIds.Count;
 
@@ -488,7 +488,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("Select All", GUILayout.Width(84f)))
         {
-            foreach (IdleData idleData in jobData.idleDatas)
+            foreach (Idle_Data idleData in jobData.idleDatas)
             {
                 if (idleData != null)
                 {
@@ -507,14 +507,14 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (GUILayout.Button("Remove Selected", GUILayout.Width(116f)))
             {
                 bool confirmed = EditorUtility.DisplayDialog(
-                    "Remove Selected IdleData",
-                    $"Remove {selectedCount} selected IdleData reference(s) from '{jobData.name}'?",
+                    "Remove Selected Idle_Data",
+                    $"Remove {selectedCount} selected Idle_Data reference(s) from '{jobData.name}'?",
                     "Remove",
                     "Cancel");
 
                 if (confirmed)
                 {
-                    Undo.RecordObject(jobData, "Remove Selected IdleData");
+                    Undo.RecordObject(jobData, "Remove Selected Idle_Data");
                     jobData.idleDatas.RemoveAll(idleData => idleData != null && selectedIdleIds.Contains(idleData.GetInstanceID()));
                     EditorUtility.SetDirty(jobData);
                     GetJobIdleFinishActionRows(jobData).Clear();
@@ -529,11 +529,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    private JobIdleRowAction DrawIdleRow(JobData jobData, int index, HashSet<int> selectedIdleIds, float[] widths, out int targetIndex)
+    private JobIdleRowAction DrawIdleRow(Job_Data jobData, int index, HashSet<int> selectedIdleIds, float[] widths, out int targetIndex)
     {
         targetIndex = index;
         HashSet<int> expandedFinishActions = GetJobIdleFinishActionRows(jobData);
-        IdleData row = jobData.idleDatas[index];
+        Idle_Data row = jobData.idleDatas[index];
         int rowId = row != null ? row.GetInstanceID() : 0;
         int finishActionRowKey = index;
 
@@ -547,10 +547,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         EditorGUI.BeginChangeCheck();
-        IdleData changedRow = (IdleData)EditorGUILayout.ObjectField(row, typeof(IdleData), false, GUILayout.Width(widths[1]));
+        Idle_Data changedRow = (Idle_Data)EditorGUILayout.ObjectField(row, typeof(Idle_Data), false, GUILayout.Width(widths[1]));
         if (EditorGUI.EndChangeCheck())
         {
-            Undo.RecordObject(jobData, "Change IdleData Reference");
+            Undo.RecordObject(jobData, "Change Idle_Data Reference");
             jobData.idleDatas[index] = changedRow;
             EditorUtility.SetDirty(jobData);
             if (row != null && changedRow != row)
@@ -628,7 +628,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]))
             && EditorUtility.DisplayDialog(
-                "Remove IdleData Reference",
+                "Remove Idle_Data Reference",
                 $"Remove '{row.name}' from '{jobData.name}' idle list?",
                 "Remove",
                 "Cancel");
@@ -928,7 +928,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawIdleCategoryFilter();
 
         EditorGUILayout.BeginHorizontal();
-        _pendingIdleToAdd = (IdleData)EditorGUILayout.ObjectField("Add Existing Idle", _pendingIdleToAdd, typeof(IdleData), false);
+        _pendingIdleToAdd = (Idle_Data)EditorGUILayout.ObjectField("Add Existing Idle", _pendingIdleToAdd, typeof(Idle_Data), false);
         using (new EditorGUI.DisabledScope(_pendingIdleToAdd == null))
         {
             if (GUILayout.Button("Add", GUILayout.Width(70f)))
@@ -938,15 +938,15 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
         }
 
-        if (GUILayout.Button("New IdleData", GUILayout.Width(110f)))
+        if (GUILayout.Button("New Idle_Data", GUILayout.Width(110f)))
         {
-            IdleData created = CreateDataAsset<IdleData>(GetSettingsFolderPath(_settings?.idleDataFolder), "IdleData");
+            Idle_Data created = CreateDataAsset<Idle_Data>(GetSettingsFolderPath(_settings?.idleDataFolder), "Idle_Data");
             AddUnique(_idleRows, created);
         }
         EditorGUILayout.EndHorizontal();
 
-        DrawDropZone<IdleData>(
-            "Drop IdleData assets here",
+        DrawDropZone<Idle_Data>(
+            "Drop Idle_Data assets here",
             droppedIdleData =>
             {
                 AddUnique(_idleRows, droppedIdleData);
@@ -959,7 +959,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         int removeIndex = -1;
         for (int i = 0; i < _idleRows.Count; i++)
         {
-            IdleData row = _idleRows[i];
+            Idle_Data row = _idleRows[i];
             if (row != null && !PassesIdleJobFilter(row))
             {
                 continue;
@@ -979,8 +979,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
     private void DrawIdleCategoryFilter()
     {
-        List<JobData> availableJobs = new();
-        foreach (JobData jobData in _jobRows)
+        List<Job_Data> availableJobs = new();
+        foreach (Job_Data jobData in _jobRows)
         {
             if (jobData != null)
             {
@@ -996,7 +996,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         });
 
         List<string> filterNames = new() { "All Jobs" };
-        foreach (JobData jobData in availableJobs)
+        foreach (Job_Data jobData in availableJobs)
         {
             filterNames.Add(string.IsNullOrWhiteSpace(jobData.jobName) ? jobData.name : jobData.jobName);
         }
@@ -1029,7 +1029,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("Select All", GUILayout.Width(84f)))
         {
-            foreach (IdleData idleData in _idleRows)
+            foreach (Idle_Data idleData in _idleRows)
             {
                 if (idleData != null && PassesIdleJobFilter(idleData))
                 {
@@ -1047,11 +1047,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         {
             if (GUILayout.Button("Delete Selected", GUILayout.Width(112f)))
             {
-                List<IdleData> selectedIdles = GetSelectedObjects(_idleRows, _selectedIdleAssetIds);
-                if (DeleteAssetsWithConfirmation(selectedIdles, "IdleData"))
+                List<Idle_Data> selectedIdles = GetSelectedObjects(_idleRows, _selectedIdleAssetIds);
+                if (DeleteAssetsWithConfirmation(selectedIdles, "Idle_Data"))
                 {
                     HashSet<int> deletedIds = new();
-                    foreach (IdleData idleData in selectedIdles)
+                    foreach (Idle_Data idleData in selectedIdles)
                     {
                         if (idleData != null)
                         {
@@ -1081,7 +1081,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
         DrawHeaderCell("Sel", widths[0]);
-        DrawHeaderCell("IdleData", widths[1]);
+        DrawHeaderCell("Idle_Data", widths[1]);
         DrawHeaderCell("Display Name", widths[2]);
         DrawHeaderCell("Interval", widths[3]);
         DrawHeaderCell("XP Reward", widths[4]);
@@ -1095,7 +1095,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
     private bool DrawIdleAssetRow(int rowIndex, float[] widths)
     {
-        IdleData row = _idleRows[rowIndex];
+        Idle_Data row = _idleRows[rowIndex];
         int rowId = row != null ? row.GetInstanceID() : 0;
 
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
@@ -1108,7 +1108,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         EditorGUI.BeginChangeCheck();
-        IdleData changedRow = (IdleData)EditorGUILayout.ObjectField(row, typeof(IdleData), false, GUILayout.Width(widths[1]));
+        Idle_Data changedRow = (Idle_Data)EditorGUILayout.ObjectField(row, typeof(Idle_Data), false, GUILayout.Width(widths[1]));
         if (EditorGUI.EndChangeCheck())
         {
             if (row != null && changedRow != row)
@@ -1168,7 +1168,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]));
         if (removeRow)
         {
-            removeRow = DeleteAssetsWithConfirmation(new List<IdleData> { row }, "IdleData");
+            removeRow = DeleteAssetsWithConfirmation(new List<Idle_Data> { row }, "Idle_Data");
             if (removeRow)
             {
                 _selectedIdleAssetIds.Remove(rowId);
@@ -1236,12 +1236,12 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _expandedIdleAssetFinishActionRows.Clear();
         _pendingIdleAdds.Clear();
 
-        _jobRows.AddRange(LoadAssets<JobData>(jobsFolder));
+        _jobRows.AddRange(LoadAssets<Job_Data>(jobsFolder));
         _itemRows.AddRange(LoadAssets<ItemsData>(itemsFolder));
-        _idleRows.AddRange(LoadAssets<IdleData>(idleFolder));
+        _idleRows.AddRange(LoadAssets<Idle_Data>(idleFolder));
 
-        Dictionary<int, JobData> jobsById = new();
-        foreach (JobData jobData in _jobRows)
+        Dictionary<int, Job_Data> jobsById = new();
+        foreach (Job_Data jobData in _jobRows)
         {
             if (jobData != null)
             {
@@ -1276,7 +1276,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         foreach (KeyValuePair<int, HashSet<int>> pair in previousExpandedJobIdleFinishActionRows)
         {
-            if (!jobsById.TryGetValue(pair.Key, out JobData jobData) || jobData == null)
+            if (!jobsById.TryGetValue(pair.Key, out Job_Data jobData) || jobData == null)
             {
                 continue;
             }
@@ -1292,7 +1292,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         HashSet<int> validIdleIds = new();
-        foreach (IdleData idleData in _idleRows)
+        foreach (Idle_Data idleData in _idleRows)
         {
             if (idleData != null)
             {
@@ -1492,7 +1492,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return widths;
     }
 
-    private HashSet<int> GetJobIdleFinishActionRows(JobData jobData)
+    private HashSet<int> GetJobIdleFinishActionRows(Job_Data jobData)
     {
         int jobId = jobData.GetInstanceID();
         if (!_expandedJobIdleFinishActionRows.TryGetValue(jobId, out HashSet<int> expandedRows))
@@ -2218,7 +2218,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return deletedCount > 0;
     }
 
-    private HashSet<int> GetIdleSelectionSet(JobData jobData)
+    private HashSet<int> GetIdleSelectionSet(Job_Data jobData)
     {
         int jobId = jobData.GetInstanceID();
         if (!_selectedIdleIds.TryGetValue(jobId, out HashSet<int> selectionSet))
@@ -2230,10 +2230,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return selectionSet;
     }
 
-    private static void PruneIdleSelection(JobData jobData, HashSet<int> selectedIds)
+    private static void PruneIdleSelection(Job_Data jobData, HashSet<int> selectedIds)
     {
         HashSet<int> validIds = new();
-        foreach (IdleData idleData in jobData.idleDatas)
+        foreach (Idle_Data idleData in jobData.idleDatas)
         {
             if (idleData != null)
             {
@@ -2254,19 +2254,19 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         list.Add(item);
     }
 
-    private void EnsureIdleList(JobData jobData)
+    private void EnsureIdleList(Job_Data jobData)
     {
         if (jobData.idleDatas != null)
         {
             return;
         }
 
-        Undo.RecordObject(jobData, "Initialize IdleData List");
-        jobData.idleDatas = new List<IdleData>();
+        Undo.RecordObject(jobData, "Initialize Idle_Data List");
+        jobData.idleDatas = new List<Idle_Data>();
         EditorUtility.SetDirty(jobData);
     }
 
-    private void AddIdleToJob(JobData jobData, IdleData idleData)
+    private void AddIdleToJob(Job_Data jobData, Idle_Data idleData)
     {
         if (jobData == null || idleData == null)
         {
@@ -2279,12 +2279,12 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             return;
         }
 
-        Undo.RecordObject(jobData, "Add IdleData");
+        Undo.RecordObject(jobData, "Add Idle_Data");
         jobData.idleDatas.Add(idleData);
         EditorUtility.SetDirty(jobData);
     }
 
-    private void MoveIdleRow(JobData jobData, int fromIndex, int toIndex)
+    private void MoveIdleRow(Job_Data jobData, int fromIndex, int toIndex)
     {
         if (jobData == null || jobData.idleDatas == null)
         {
@@ -2296,8 +2296,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             return;
         }
 
-        Undo.RecordObject(jobData, "Reorder IdleData");
-        IdleData movedRow = jobData.idleDatas[fromIndex];
+        Undo.RecordObject(jobData, "Reorder Idle_Data");
+        Idle_Data movedRow = jobData.idleDatas[fromIndex];
         jobData.idleDatas.RemoveAt(fromIndex);
         jobData.idleDatas.Insert(toIndex, movedRow);
         EditorUtility.SetDirty(jobData);
@@ -2343,7 +2343,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return itemData.itemType == (Catalog_ItemType)(int)_itemFilter;
     }
 
-    private bool PassesIdleJobFilter(IdleData idleData)
+    private bool PassesIdleJobFilter(Idle_Data idleData)
     {
         if (_idleCategoryFilterJob == null)
         {
@@ -2353,10 +2353,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return _idleCategoryFilterJob.idleDatas != null && _idleCategoryFilterJob.idleDatas.Contains(idleData);
     }
 
-    private string GetIdleMembershipLabel(IdleData idleData)
+    private string GetIdleMembershipLabel(Idle_Data idleData)
     {
         List<string> jobNames = new();
-        foreach (JobData jobData in _jobRows)
+        foreach (Job_Data jobData in _jobRows)
         {
             if (jobData == null || jobData.idleDatas == null || !jobData.idleDatas.Contains(idleData))
             {

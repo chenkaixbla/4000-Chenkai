@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
   m_Name: Wood Idle 2
-  m_EditorClassIdentifier: Assembly-CSharp::IdleData
+  m_EditorClassIdentifier: Assembly-CSharp::Idle_Data
   guid: a230b4cd-027f-4127-a535-e3cb01994d62
   displayName: Pine Tree
   interval: 3

@@ -746,7 +746,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ad2ce7a710b4a947947ed10a730866e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::IdleCard
+  m_EditorClassIdentifier: Assembly-CSharp::Idle_Card
   newInstanceOnStart: 1
   idleData: {fileID: 0}
   currentInstance:

@@ -343,7 +343,6 @@ GameObject:
   m_Component:
   - component: {fileID: 5623729499180926172}
   - component: {fileID: 5523348590319035118}
-  - component: {fileID: 1322009865806760298}
   m_Layer: 5
   m_Name: Job Element
   m_TagString: Untagged
@@ -384,23 +383,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a56e082991d1654d8daa6d247cb35cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JobElement
+  jobInstance: {fileID: 0}
   button: {fileID: 8741427038455016605}
   displayNameText: {fileID: 2318687450308929651}
   iconImage: {fileID: 7713596285012200900}
-  jobInstance: {fileID: 1322009865806760298}
---- !u!114 &1322009865806760298
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6778712882789937146}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9503d8919ec10ea448264c838526dc64, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::JobData
-  skillLevel: 0
-  xp: 0
-  jobData: {fileID: 0}
-  idleInstances: []

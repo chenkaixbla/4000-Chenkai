@@ -3,6 +3,7 @@ using EditorAttributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 public class ShopManager : MonoBehaviour
 {
@@ -10,8 +11,13 @@ public class ShopManager : MonoBehaviour
     public InventoryManager inventory;
     public CurrencyManager currency;
     public InventoryPageController inventoryPageController;
-    public CardViewManager cardViewManager;
-    public int shopViewIndex = 1;
+    [FormerlySerializedAs("cardViewManager")]
+    public Menu_MainViewManager menuViewManager;
+    [SerializeField, Dropdown(nameof(GetViewPanelNames))] string shopPanelName;
+
+    [Title("Shop List")]
+    public Transform shopCardContainer;
+    public GameObject shopCardPrefab;
 
     [Title("UI")]
     public Button shopButton;
@@ -31,7 +37,6 @@ public class ShopManager : MonoBehaviour
     [Min(0f)] public float refreshInterval = 0.25f;
 
 
-    ScrollViewData viewData;
     readonly List<ShopCard> spawnedCards = new();
     float nextRefreshTime;
     ItemsData promptItemData;
@@ -40,13 +45,17 @@ public class ShopManager : MonoBehaviour
 
     void Start()
     {
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
         if (inventoryPageController != null)
         {
             inventoryPageController.SellRequested -= HandleInventorySellRequested;
             inventoryPageController.SellRequested += HandleInventorySellRequested;
         }
 
-        viewData = cardViewManager != null ? cardViewManager.GetScrollViewData(shopViewIndex) : null;
         if (shopButton != null)
         {
             shopButton.onClick.AddListener(OnShopButtonClick);
@@ -60,7 +69,7 @@ public class ShopManager : MonoBehaviour
 
     void Update()
     {
-        if (refreshInterval <= 0f || viewData == null || viewData.scrollView == null || !viewData.scrollView.activeInHierarchy)
+        if (refreshInterval <= 0f || shopCardContainer == null || !shopCardContainer.gameObject.activeInHierarchy)
         {
             return;
         }
@@ -124,10 +133,7 @@ public class ShopManager : MonoBehaviour
 
     void OnShopButtonClick()
     {
-        if (cardViewManager != null)
-        {
-            cardViewManager.ShowScrollView(shopViewIndex);
-        }
+        ShowConfiguredPanel(shopPanelName);
 
         RefreshAllCards();
     }
@@ -249,12 +255,11 @@ public class ShopManager : MonoBehaviour
     [Button]
     public void RebuildShop()
     {
-        viewData = cardViewManager != null ? cardViewManager.GetScrollViewData(shopViewIndex) : null;
         ClearSpawnedCards();
 
-        if (viewData == null || viewData.container == null || viewData.prefab == null)
+        if (shopCardContainer == null || shopCardPrefab == null)
         {
-            Debug.LogWarning("ShopManager is missing a valid shop view configuration.", this);
+            Debug.LogWarning("ShopManager is missing shop card references (prefab/container).", this);
             return;
         }
 
@@ -318,12 +323,12 @@ public class ShopManager : MonoBehaviour
 
     void SpawnItemForSale(ItemsData data)
     {
-        if (data == null || viewData == null || viewData.prefab == null || viewData.container == null)
+        if (data == null || shopCardPrefab == null || shopCardContainer == null)
         {
             return;
         }
 
-        GameObject cardObject = Instantiate(viewData.prefab, viewData.container);
+        GameObject cardObject = Instantiate(shopCardPrefab, shopCardContainer);
         ShopCard card = cardObject.GetComponent<ShopCard>();
         if (card == null)
         {
@@ -561,5 +566,35 @@ public class ShopManager : MonoBehaviour
             && addButton != null
             && confirmButton != null
             && cancelButton != null;
+    }
+
+    void ShowConfiguredPanel(string panelName)
+    {
+        if (string.IsNullOrWhiteSpace(panelName))
+        {
+            return;
+        }
+
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        if (menuViewManager == null)
+        {
+            return;
+        }
+
+        menuViewManager.ShowPanel(panelName);
+    }
+
+    string[] GetViewPanelNames()
+    {
+        if (menuViewManager == null)
+        {
+            menuViewManager = FindFirstObjectByType<Menu_MainViewManager>();
+        }
+
+        return menuViewManager != null ? menuViewManager.GetPanelNames() : System.Array.Empty<string>();
     }
 }

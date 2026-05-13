@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EditorAttributes;
 using UnityEngine;
 
 public enum ConditionRuleType
@@ -43,12 +44,12 @@ public sealed class ConditionContext
 {
     public static readonly ConditionContext Empty = new();
 
-    public IdleInstance IdleInstance { get; }
-    public JobInstance JobInstance { get; }
+    public Idle_Instance Idle_Instance { get; }
+    public Job_Instance JobInstance { get; }
 
-    public ConditionContext(IdleInstance idleInstance = null, JobInstance jobInstance = null)
+    public ConditionContext(Idle_Instance idleInstance = null, Job_Instance jobInstance = null)
     {
-        IdleInstance = idleInstance;
+        Idle_Instance = idleInstance;
         JobInstance = jobInstance ?? idleInstance?.ownerJobInstance;
     }
 }
@@ -65,8 +66,10 @@ public abstract class ConditionRule
 public class ConditionRule_Level : ConditionRule
 {
     public ProgressionConditionTarget target = ProgressionConditionTarget.CurrentIdle;
-    public IdleData idleData;
-    public JobData jobData;
+    [ShowField(nameof(target), ProgressionConditionTarget.SpecificIdle)]
+    public Idle_Data idleData;
+    [ShowField(nameof(target), ProgressionConditionTarget.SpecificJob)]
+    public Job_Data jobData;
     public ConditionComparisonType comparison = ConditionComparisonType.GreaterThanOrEqual;
     public int requiredLevel;
 
@@ -83,8 +86,10 @@ public class ConditionRule_Level : ConditionRule
 public class ConditionRule_XP : ConditionRule
 {
     public ProgressionConditionTarget target = ProgressionConditionTarget.CurrentIdle;
-    public IdleData idleData;
-    public JobData jobData;
+    [ShowField(nameof(target), ProgressionConditionTarget.SpecificIdle)]
+    public Idle_Data idleData;
+    [ShowField(nameof(target), ProgressionConditionTarget.SpecificJob)]
+    public Job_Data jobData;
     public ConditionComparisonType comparison = ConditionComparisonType.GreaterThanOrEqual;
     public int requiredXP;
 
@@ -285,7 +290,7 @@ public static class ConditionRuleUtility
         }
     }
 
-    static Sprite GetProgressTargetIcon(ProgressionConditionTarget target, IdleData idleData, JobData jobData)
+    static Sprite GetProgressTargetIcon(ProgressionConditionTarget target, Idle_Data idleData, Job_Data jobData)
     {
         switch (target)
         {
@@ -302,12 +307,12 @@ public static class ConditionRuleUtility
 
 public static class ConditionRuntimeLookup
 {
-    public static IConditionProgressSource ResolveProgressSource(ProgressionConditionTarget target, ConditionContext context, IdleData idleData, JobData jobData)
+    public static IConditionProgressSource ResolveProgressSource(ProgressionConditionTarget target, ConditionContext context, Idle_Data idleData, Job_Data jobData)
     {
         switch (target)
         {
             case ProgressionConditionTarget.CurrentIdle:
-                return context?.IdleInstance;
+                return context?.Idle_Instance;
             case ProgressionConditionTarget.CurrentJob:
                 return context?.JobInstance;
             case ProgressionConditionTarget.SpecificIdle:
@@ -319,17 +324,17 @@ public static class ConditionRuntimeLookup
         }
     }
 
-    public static IdleInstance FindIdleInstance(IdleData idleData)
+    public static Idle_Instance FindIdleInstance(Idle_Data idleData)
     {
         if (idleData == null)
         {
             return null;
         }
 
-        IReadOnlyList<JobInstance> activeJobs = JobInstance.ActiveInstances;
+        IReadOnlyList<Job_Instance> activeJobs = Job_Instance.ActiveInstances;
         for (int i = 0; i < activeJobs.Count; i++)
         {
-            JobInstance jobInstance = activeJobs[i];
+            Job_Instance jobInstance = activeJobs[i];
             if (jobInstance == null || jobInstance.idleInstances == null)
             {
                 continue;
@@ -337,7 +342,7 @@ public static class ConditionRuntimeLookup
 
             for (int j = 0; j < jobInstance.idleInstances.Count; j++)
             {
-                IdleInstance idleInstance = jobInstance.idleInstances[j];
+                Idle_Instance idleInstance = jobInstance.idleInstances[j];
                 if (idleInstance != null && idleInstance.idleData == idleData)
                 {
                     return idleInstance;
@@ -348,17 +353,17 @@ public static class ConditionRuntimeLookup
         return null;
     }
 
-    public static JobInstance FindJobInstance(JobData jobData)
+    public static Job_Instance FindJobInstance(Job_Data jobData)
     {
         if (jobData == null)
         {
             return null;
         }
 
-        IReadOnlyList<JobInstance> activeJobs = JobInstance.ActiveInstances;
+        IReadOnlyList<Job_Instance> activeJobs = Job_Instance.ActiveInstances;
         for (int i = 0; i < activeJobs.Count; i++)
         {
-            JobInstance jobInstance = activeJobs[i];
+            Job_Instance jobInstance = activeJobs[i];
             if (jobInstance != null && jobInstance.jobData == jobData)
             {
                 return jobInstance;

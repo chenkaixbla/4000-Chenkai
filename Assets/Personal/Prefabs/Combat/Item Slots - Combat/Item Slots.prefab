@@ -189,6 +189,7 @@ MonoBehaviour:
   autoUseToggle: {fileID: 0}
   background: {fileID: 8523044828785836541}
   placeholderGhostImage: {fileID: 6509975624057487130}
+  enableVerboseLogging: 1
   boundItemData: {fileID: 0}
   boundQuantity: 0
 --- !u!114 &9052459375368194259
