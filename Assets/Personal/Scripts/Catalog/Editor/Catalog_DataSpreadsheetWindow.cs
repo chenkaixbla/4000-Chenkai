@@ -33,10 +33,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private const string SettingsAssetPath = "Assets/Personal/Scripts/Catalog/Catalog_DataSettings.asset";
     private const string StretchTablesPrefKey = "Catalog_DataSpreadsheetWindow.StretchTables";
     private const float ObjectCellWidth = 220f;
-    private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 72f, 24f };
-    private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 300f, 46f, 24f };
-    private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 150f, 24f };
-    private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 75f, 75f, 85f, 220f, 200f, 24f };
+    private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 24f };
+    private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 46f, 24f };
+    private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 24f };
+    private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 95f, 85f, 200f, 24f };
 
     private readonly List<Job_Data> _jobRows = new();
     private readonly List<ItemsData> _itemRows = new();
@@ -47,9 +47,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private readonly HashSet<int> _selectedIdleAssetIds = new();
     private readonly Dictionary<int, HashSet<int>> _selectedIdleIds = new();
     private readonly HashSet<int> _expandedJobRows = new();
-    private readonly HashSet<int> _expandedItemRows = new();
-    private readonly Dictionary<int, HashSet<int>> _expandedJobIdleFinishActionRows = new();
-    private readonly HashSet<int> _expandedIdleAssetFinishActionRows = new();
 
     private Catalog_DataSettings _settings;
     private Job_Data _idleCategoryFilterJob;
@@ -215,8 +212,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("Icon", widths[3]);
         DrawHeaderCell("Max XP", widths[4]);
         DrawHeaderCell("Idle Count", widths[5]);
-        DrawHeaderCell("Expand", widths[6]);
-        DrawHeaderCell("X", widths[7]);
+        DrawHeaderCell("X", widths[6]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -268,7 +264,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                         _expandedJobRows.Remove(deletedId);
                         _pendingIdleAdds.Remove(deletedId);
                         _selectedIdleIds.Remove(deletedId);
-                        _expandedJobIdleFinishActionRows.Remove(deletedId);
                     }
                 }
             }
@@ -304,7 +299,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 _expandedJobRows.Remove(rowId);
                 _pendingIdleAdds.Remove(row.GetInstanceID());
                 _selectedIdleIds.Remove(row.GetInstanceID());
-                _expandedJobIdleFinishActionRows.Remove(row.GetInstanceID());
             }
 
             _jobRows[rowIndex] = changedRow;
@@ -316,8 +310,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         {
             float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5];
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            GUILayout.Space(widths[6]);
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[6]));
             EditorGUILayout.EndHorizontal();
             return removeEmpty;
         }
@@ -332,20 +325,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         SerializedProperty idleDatasProperty = serializedRow.FindProperty("idleDatas");
         EditorGUILayout.LabelField(idleDatasProperty != null ? idleDatasProperty.arraySize.ToString() : "-", GUILayout.Width(widths[5]));
 
-        bool expanded = _expandedJobRows.Contains(rowId);
-        if (GUILayout.Button(expanded ? "Hide" : "Show", GUILayout.Width(widths[6])))
-        {
-            if (expanded)
-            {
-                _expandedJobRows.Remove(rowId);
-            }
-            else
-            {
-                _expandedJobRows.Add(rowId);
-            }
-        }
-
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[6]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<Job_Data> { row }, "JobData");
@@ -355,7 +335,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 _expandedJobRows.Remove(rowId);
                 _pendingIdleAdds.Remove(rowId);
                 _selectedIdleIds.Remove(rowId);
-                _expandedJobIdleFinishActionRows.Remove(rowId);
             }
         }
 
@@ -365,16 +344,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         EditorGUILayout.EndHorizontal();
-
-        if (_expandedJobRows.Contains(rowId))
-        {
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(24f);
-            EditorGUILayout.BeginVertical();
-            DrawIdleTable(row, Mathf.Max(260f, tableWidth - 36f));
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndHorizontal();
-        }
 
         return removeRow;
     }
@@ -458,7 +427,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             Undo.RecordObject(jobData, "Remove Idle_Data");
             jobData.idleDatas.RemoveAt(removeIndex);
             EditorUtility.SetDirty(jobData);
-            GetJobIdleFinishActionRows(jobData).Clear();
         }
 
         EditorGUILayout.EndVertical();
@@ -474,9 +442,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("XP Reward", widths[4]);
         DrawHeaderCell("Max XP", widths[5]);
         DrawHeaderCell("Icon", widths[6]);
-        DrawHeaderCell("Rules", widths[7]);
-        DrawHeaderCell("Move", widths[8]);
-        DrawHeaderCell("X", widths[9]);
+        DrawHeaderCell("Move", widths[7]);
+        DrawHeaderCell("X", widths[8]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -517,7 +484,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                     Undo.RecordObject(jobData, "Remove Selected Idle_Data");
                     jobData.idleDatas.RemoveAll(idleData => idleData != null && selectedIdleIds.Contains(idleData.GetInstanceID()));
                     EditorUtility.SetDirty(jobData);
-                    GetJobIdleFinishActionRows(jobData).Clear();
                     selectedIdleIds.Clear();
                 }
             }
@@ -532,10 +498,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private JobIdleRowAction DrawIdleRow(Job_Data jobData, int index, HashSet<int> selectedIdleIds, float[] widths, out int targetIndex)
     {
         targetIndex = index;
-        HashSet<int> expandedFinishActions = GetJobIdleFinishActionRows(jobData);
         Idle_Data row = jobData.idleDatas[index];
         int rowId = row != null ? row.GetInstanceID() : 0;
-        int finishActionRowKey = index;
 
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
 
@@ -556,7 +520,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (row != null && changedRow != row)
             {
                 selectedIdleIds.Remove(rowId);
-                expandedFinishActions.Remove(finishActionRowKey);
             }
             row = changedRow;
             rowId = row != null ? row.GetInstanceID() : 0;
@@ -571,9 +534,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
 
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeNull = GUILayout.Button("X", GUILayout.Width(widths[9]));
+            bool removeNull = GUILayout.Button("X", GUILayout.Width(widths[8]));
             EditorGUILayout.EndHorizontal();
-            expandedFinishActions.Remove(finishActionRowKey);
             return removeNull ? JobIdleRowAction.Remove : JobIdleRowAction.None;
         }
 
@@ -582,38 +544,13 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         DrawCompactProperty(serializedRow.FindProperty("displayName"), widths[2]);
         DrawCompactProperty(serializedRow.FindProperty("interval"), widths[3]);
-        DrawCompactProperty(serializedRow.FindProperty("xpReward"), widths[4]);
+        DrawCompactProperty(serializedRow.FindProperty("idleXPReward"), widths[4]);
         DrawCompactProperty(serializedRow.FindProperty("maxXP"), widths[5]);
         DrawCompactProperty(serializedRow.FindProperty("icon"), widths[6]);
 
-        SerializedProperty finishActionsProperty = serializedRow.FindProperty("finishActions");
-        SerializedProperty startConditionsProperty = serializedRow.FindProperty("startConditions");
-        bool isExpanded = expandedFinishActions.Contains(finishActionRowKey);
-        EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[7]));
-        bool nextExpanded = isExpanded;
-        if (GUILayout.Button(isExpanded ? "v" : ">", EditorStyles.miniButton, GUILayout.Width(16f)))
-        {
-            nextExpanded = !isExpanded;
-        }
-
-        EditorGUILayout.LabelField(GetIdleRulesLabel(finishActionsProperty, startConditionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
-        EditorGUILayout.EndHorizontal();
-
-        if (nextExpanded != isExpanded)
-        {
-            if (nextExpanded)
-            {
-                expandedFinishActions.Add(finishActionRowKey);
-            }
-            else
-            {
-                expandedFinishActions.Remove(finishActionRowKey);
-            }
-        }
-
         bool moveUp = false;
         bool moveDown = false;
-        using (new EditorGUILayout.HorizontalScope(GUILayout.Width(widths[8])))
+        using (new EditorGUILayout.HorizontalScope(GUILayout.Width(widths[7])))
         {
             using (new EditorGUI.DisabledScope(index <= 0))
             {
@@ -626,7 +563,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
         }
 
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]))
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[8]))
             && EditorUtility.DisplayDialog(
                 "Remove Idle_Data Reference",
                 $"Remove '{row.name}' from '{jobData.name}' idle list?",
@@ -636,25 +573,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         if (removeRow)
         {
             selectedIdleIds.Remove(rowId);
-            expandedFinishActions.Remove(finishActionRowKey);
         }
 
-        bool drawFinishActionDetails = expandedFinishActions.Contains(finishActionRowKey);
-        if (drawFinishActionDetails)
-        {
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(GetFinishActionIndentWidth(widths, 7));
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(Mathf.Max(180f, widths[7] + widths[8] + widths[9]))))
-            {
-                DrawIdleRulesDetails(finishActionsProperty, startConditionsProperty);
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-        else
-        {
-            EditorGUILayout.EndHorizontal();
-        }
+        EditorGUILayout.EndHorizontal();
 
         if (serializedRow.ApplyModifiedProperties())
         {
@@ -737,12 +658,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (removeIndex >= 0)
         {
-            ItemsData removedItem = _itemRows[removeIndex];
-            if (removedItem != null)
-            {
-                _expandedItemRows.Remove(removedItem.GetInstanceID());
-            }
-
             _itemRows.RemoveAt(removeIndex);
         }
     }
@@ -758,8 +673,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("Description", widths[5]);
         DrawHeaderCell("Price", widths[6]);
         DrawHeaderCell("Icon", widths[7]);
-        DrawHeaderCell("Details", widths[8]);
-        DrawHeaderCell("X", widths[9]);
+        DrawHeaderCell("X", widths[8]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -805,7 +719,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
                     _itemRows.RemoveAll(itemData => itemData == null || deletedIds.Contains(itemData.GetInstanceID()));
                     _selectedItemIds.ExceptWith(deletedIds);
-                    _expandedItemRows.ExceptWith(deletedIds);
                 }
             }
         }
@@ -837,7 +750,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (row != null && changedRow != row)
             {
                 _selectedItemIds.Remove(rowId);
-                _expandedItemRows.Remove(rowId);
             }
 
             _itemRows[rowIndex] = changedRow;
@@ -847,11 +759,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (row == null)
         {
-            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6] + widths[7] + widths[8];
+            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6] + widths[7];
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[9]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[8]));
             EditorGUILayout.EndHorizontal();
-            _expandedItemRows.Remove(rowId);
             return removeEmpty;
         }
 
@@ -865,52 +776,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawCompactProperty(serializedRow.FindProperty("price"), widths[6]);
         DrawCompactProperty(serializedRow.FindProperty("icon"), widths[7]);
 
-        SerializedProperty itemTypeProperty = serializedRow.FindProperty("itemType");
-        SerializedProperty purchaseRequirementsProperty = serializedRow.FindProperty("purchaseRequirements");
-        SerializedProperty combatDataProperty = serializedRow.FindProperty("combatData");
-        bool isExpanded = _expandedItemRows.Contains(rowId);
-        EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[8]));
-        bool nextExpanded = isExpanded;
-        if (GUILayout.Button(isExpanded ? "v" : ">", EditorStyles.miniButton, GUILayout.Width(16f)))
-        {
-            nextExpanded = !isExpanded;
-        }
-
-        EditorGUILayout.LabelField(GetItemDetailsLabel(purchaseRequirementsProperty, combatDataProperty), GUILayout.Width(Mathf.Max(0f, widths[8] - 16f)));
-        EditorGUILayout.EndHorizontal();
-
-        if (nextExpanded != isExpanded)
-        {
-            SetSelection(_expandedItemRows, rowId, nextExpanded);
-        }
-
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]));
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[8]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<ItemsData> { row }, "ItemsData");
             if (removeRow)
             {
                 _selectedItemIds.Remove(rowId);
-                _expandedItemRows.Remove(rowId);
             }
         }
 
-        bool drawItemDetails = _expandedItemRows.Contains(rowId);
-        if (drawItemDetails)
-        {
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(widths[0]);
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                DrawItemDetails(itemTypeProperty, purchaseRequirementsProperty, combatDataProperty);
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-        else
-        {
-            EditorGUILayout.EndHorizontal();
-        }
+        EditorGUILayout.EndHorizontal();
 
         if (serializedRow.ApplyModifiedProperties())
         {
@@ -1061,7 +937,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
                     _idleRows.RemoveAll(idleData => idleData == null || deletedIds.Contains(idleData.GetInstanceID()));
                     _selectedIdleAssetIds.ExceptWith(deletedIds);
-                    _expandedIdleAssetFinishActionRows.ExceptWith(deletedIds);
 
                     foreach (HashSet<int> idleSelectionSet in _selectedIdleIds.Values)
                     {
@@ -1084,12 +959,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("Idle_Data", widths[1]);
         DrawHeaderCell("Display Name", widths[2]);
         DrawHeaderCell("Interval", widths[3]);
-        DrawHeaderCell("XP Reward", widths[4]);
-        DrawHeaderCell("Max XP", widths[5]);
-        DrawHeaderCell("Icon", widths[6]);
-        DrawHeaderCell("Rules", widths[7]);
-        DrawHeaderCell("Jobs", widths[8]);
-        DrawHeaderCell("X", widths[9]);
+        DrawHeaderCell("Job XP Reward", widths[4]);
+        DrawHeaderCell("Icon", widths[5]);
+        DrawHeaderCell("Jobs", widths[6]);
+        DrawHeaderCell("X", widths[7]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -1114,7 +987,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (row != null && changedRow != row)
             {
                 _selectedIdleAssetIds.Remove(rowId);
-                _expandedIdleAssetFinishActionRows.Remove(rowId);
             }
 
             _idleRows[rowIndex] = changedRow;
@@ -1131,9 +1003,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
 
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[9]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
             EditorGUILayout.EndHorizontal();
-            _expandedIdleAssetFinishActionRows.Remove(rowId);
             return removeEmpty;
         }
 
@@ -1142,37 +1013,18 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         DrawCompactProperty(serializedRow.FindProperty("displayName"), widths[2]);
         DrawCompactProperty(serializedRow.FindProperty("interval"), widths[3]);
-        DrawCompactProperty(serializedRow.FindProperty("xpReward"), widths[4]);
-        DrawCompactProperty(serializedRow.FindProperty("maxXP"), widths[5]);
-        DrawCompactProperty(serializedRow.FindProperty("icon"), widths[6]);
-        SerializedProperty finishActionsProperty = serializedRow.FindProperty("finishActions");
-        SerializedProperty startConditionsProperty = serializedRow.FindProperty("startConditions");
-        bool isExpanded = _expandedIdleAssetFinishActionRows.Contains(rowId);
-        EditorGUILayout.BeginHorizontal(GUILayout.Width(widths[7]));
-        bool nextExpanded = isExpanded;
-        if (GUILayout.Button(isExpanded ? "v" : ">", EditorStyles.miniButton, GUILayout.Width(16f)))
-        {
-            nextExpanded = !isExpanded;
-        }
+        DrawCompactProperty(serializedRow.FindProperty("jobXPReward"), widths[4]);
+        DrawCompactProperty(serializedRow.FindProperty("icon"), widths[5]);
 
-        EditorGUILayout.LabelField(GetIdleRulesLabel(finishActionsProperty, startConditionsProperty), GUILayout.Width(Mathf.Max(0f, widths[7] - 16f)));
-        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.LabelField(GetIdleMembershipLabel(row), GUILayout.Width(widths[6]));
 
-        if (nextExpanded != isExpanded)
-        {
-            SetSelection(_expandedIdleAssetFinishActionRows, rowId, nextExpanded);
-        }
-
-        EditorGUILayout.LabelField(GetIdleMembershipLabel(row), GUILayout.Width(widths[8]));
-
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[9]));
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<Idle_Data> { row }, "Idle_Data");
             if (removeRow)
             {
                 _selectedIdleAssetIds.Remove(rowId);
-                _expandedIdleAssetFinishActionRows.Remove(rowId);
                 foreach (HashSet<int> idleSelectionSet in _selectedIdleIds.Values)
                 {
                     idleSelectionSet.Remove(rowId);
@@ -1180,22 +1032,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
         }
 
-        bool drawFinishActionDetails = _expandedIdleAssetFinishActionRows.Contains(rowId);
-        if (drawFinishActionDetails)
-        {
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(GetFinishActionIndentWidth(widths, 7));
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(Mathf.Max(180f, widths[7] + widths[8] + widths[9]))))
-            {
-                DrawIdleRulesDetails(finishActionsProperty, startConditionsProperty);
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-        else
-        {
-            EditorGUILayout.EndHorizontal();
-        }
+        EditorGUILayout.EndHorizontal();
 
         if (serializedRow.ApplyModifiedProperties())
         {
@@ -1210,14 +1047,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         LoadOrCreateSettings();
 
         HashSet<int> previousExpandedJobRows = new(_expandedJobRows);
-        HashSet<int> previousExpandedItemRows = new(_expandedItemRows);
-        Dictionary<int, HashSet<int>> previousExpandedJobIdleFinishActionRows = new();
-        foreach (KeyValuePair<int, HashSet<int>> pair in _expandedJobIdleFinishActionRows)
-        {
-            previousExpandedJobIdleFinishActionRows[pair.Key] = new HashSet<int>(pair.Value);
-        }
-
-        HashSet<int> previousExpandedIdleAssetFinishActionRows = new(_expandedIdleAssetFinishActionRows);
 
         string jobsFolder = GetSettingsFolderPath(_settings?.jobsDataFolder);
         string itemsFolder = GetSettingsFolderPath(_settings?.itemsDataFolder);
@@ -1231,9 +1060,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _selectedIdleAssetIds.Clear();
         _selectedIdleIds.Clear();
         _expandedJobRows.Clear();
-        _expandedItemRows.Clear();
-        _expandedJobIdleFinishActionRows.Clear();
-        _expandedIdleAssetFinishActionRows.Clear();
         _pendingIdleAdds.Clear();
 
         _jobRows.AddRange(LoadAssets<Job_Data>(jobsFolder));
@@ -1254,57 +1080,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             if (jobsById.ContainsKey(expandedJobId))
             {
                 _expandedJobRows.Add(expandedJobId);
-            }
-        }
-
-        HashSet<int> validItemIds = new();
-        foreach (ItemsData itemData in _itemRows)
-        {
-            if (itemData != null)
-            {
-                validItemIds.Add(itemData.GetInstanceID());
-            }
-        }
-
-        foreach (int expandedItemId in previousExpandedItemRows)
-        {
-            if (validItemIds.Contains(expandedItemId))
-            {
-                _expandedItemRows.Add(expandedItemId);
-            }
-        }
-
-        foreach (KeyValuePair<int, HashSet<int>> pair in previousExpandedJobIdleFinishActionRows)
-        {
-            if (!jobsById.TryGetValue(pair.Key, out Job_Data jobData) || jobData == null)
-            {
-                continue;
-            }
-
-            HashSet<int> restoredRows = new(pair.Value);
-            int idleCount = jobData.idleDatas != null ? jobData.idleDatas.Count : 0;
-            restoredRows.RemoveWhere(index => index < 0 || index >= idleCount);
-
-            if (restoredRows.Count > 0)
-            {
-                _expandedJobIdleFinishActionRows[pair.Key] = restoredRows;
-            }
-        }
-
-        HashSet<int> validIdleIds = new();
-        foreach (Idle_Data idleData in _idleRows)
-        {
-            if (idleData != null)
-            {
-                validIdleIds.Add(idleData.GetInstanceID());
-            }
-        }
-
-        foreach (int expandedIdleId in previousExpandedIdleAssetFinishActionRows)
-        {
-            if (validIdleIds.Contains(expandedIdleId))
-            {
-                _expandedIdleAssetFinishActionRows.Add(expandedIdleId);
             }
         }
 
@@ -1490,583 +1265,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         return widths;
-    }
-
-    private HashSet<int> GetJobIdleFinishActionRows(Job_Data jobData)
-    {
-        int jobId = jobData.GetInstanceID();
-        if (!_expandedJobIdleFinishActionRows.TryGetValue(jobId, out HashSet<int> expandedRows))
-        {
-            expandedRows = new HashSet<int>();
-            _expandedJobIdleFinishActionRows[jobId] = expandedRows;
-        }
-
-        return expandedRows;
-    }
-
-    private static float GetFinishActionIndentWidth(float[] widths, int finishActionColumnIndex)
-    {
-        float width = 0f;
-        for (int i = 0; i < finishActionColumnIndex && i < widths.Length; i++)
-        {
-            width += widths[i];
-        }
-
-        return width;
-    }
-
-    private static string GetFinishActionsLabel(SerializedProperty finishActionsProperty)
-    {
-        if (finishActionsProperty == null || !finishActionsProperty.isArray)
-        {
-            return "-";
-        }
-
-        int count = finishActionsProperty.arraySize;
-        if (count <= 0)
-        {
-            return "None";
-        }
-
-        if (count == 1)
-        {
-            SerializedProperty firstActionEntry = finishActionsProperty.GetArrayElementAtIndex(0);
-            SerializedProperty finishTypeProperty = firstActionEntry?.FindPropertyRelative("finishType");
-            if (finishTypeProperty != null
-                && finishTypeProperty.propertyType == SerializedPropertyType.Enum
-                && finishTypeProperty.enumValueIndex >= 0
-                && finishTypeProperty.enumValueIndex < finishTypeProperty.enumDisplayNames.Length)
-            {
-                return finishTypeProperty.enumDisplayNames[finishTypeProperty.enumValueIndex];
-            }
-
-            return "1 Action";
-        }
-
-        return $"{count} Actions";
-    }
-
-    private static string GetConditionRulesLabel(SerializedProperty conditionsProperty)
-    {
-        if (conditionsProperty == null || !conditionsProperty.isArray)
-        {
-            return "-";
-        }
-
-        int count = conditionsProperty.arraySize;
-        if (count <= 0)
-        {
-            return "None";
-        }
-
-        if (count == 1)
-        {
-            SerializedProperty firstConditionEntry = conditionsProperty.GetArrayElementAtIndex(0);
-            SerializedProperty conditionTypeProperty = firstConditionEntry?.FindPropertyRelative("conditionType");
-            if (conditionTypeProperty != null
-                && conditionTypeProperty.propertyType == SerializedPropertyType.Enum
-                && conditionTypeProperty.enumValueIndex >= 0
-                && conditionTypeProperty.enumValueIndex < conditionTypeProperty.enumDisplayNames.Length)
-            {
-                return conditionTypeProperty.enumDisplayNames[conditionTypeProperty.enumValueIndex];
-            }
-
-            return "1 Condition";
-        }
-
-        return $"{count} Conditions";
-    }
-
-    private static string GetIdleRulesLabel(SerializedProperty finishActionsProperty, SerializedProperty conditionsProperty)
-    {
-        bool hasActions = finishActionsProperty != null && finishActionsProperty.isArray && finishActionsProperty.arraySize > 0;
-        bool hasConditions = conditionsProperty != null && conditionsProperty.isArray && conditionsProperty.arraySize > 0;
-
-        if (!hasActions && !hasConditions)
-        {
-            return "None";
-        }
-
-        if (!hasActions)
-        {
-            return GetConditionRulesLabel(conditionsProperty);
-        }
-
-        if (!hasConditions)
-        {
-            return GetFinishActionsLabel(finishActionsProperty);
-        }
-
-        return $"{finishActionsProperty.arraySize}A / {conditionsProperty.arraySize}C";
-    }
-
-    private static void DrawFinishActionsDetails(SerializedProperty finishActionsProperty)
-    {
-        EditorGUILayout.LabelField("Finish Actions", EditorStyles.miniBoldLabel);
-
-        if (finishActionsProperty == null || !finishActionsProperty.isArray)
-        {
-            EditorGUILayout.HelpBox("Finish actions list is not available.", MessageType.Info);
-            return;
-        }
-
-        int removeIndex = -1;
-        for (int i = 0; i < finishActionsProperty.arraySize; i++)
-        {
-            SerializedProperty actionEntry = finishActionsProperty.GetArrayElementAtIndex(i);
-            if (actionEntry == null)
-            {
-                continue;
-            }
-
-            SerializedProperty finishTypeProperty = actionEntry.FindPropertyRelative("finishType");
-            SerializedProperty finishActionProperty = actionEntry.FindPropertyRelative("finishAction");
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField($"Action {i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
-                if (finishTypeProperty != null)
-                {
-                    EditorGUILayout.PropertyField(finishTypeProperty, GUIContent.none);
-                }
-                else
-                {
-                    GUILayout.Label("-");
-                }
-
-                if (GUILayout.Button("X", GUILayout.Width(24f)))
-                {
-                    removeIndex = i;
-                }
-
-                EditorGUILayout.EndHorizontal();
-                DrawManagedReferenceChildren(finishActionProperty, "No finish action assigned for this entry.");
-            }
-        }
-
-        if (removeIndex >= 0)
-        {
-            finishActionsProperty.DeleteArrayElementAtIndex(removeIndex);
-        }
-
-        if (GUILayout.Button("Add Action", GUILayout.Width(88f)))
-        {
-            int newIndex = finishActionsProperty.arraySize;
-            finishActionsProperty.arraySize++;
-
-            SerializedProperty newActionEntry = finishActionsProperty.GetArrayElementAtIndex(newIndex);
-            if (newActionEntry != null)
-            {
-                SerializedProperty newFinishTypeProperty = newActionEntry.FindPropertyRelative("finishType");
-                if (newFinishTypeProperty != null && newFinishTypeProperty.propertyType == SerializedPropertyType.Enum)
-                {
-                    newFinishTypeProperty.enumValueIndex = 0;
-                }
-
-                SerializedProperty newFinishActionProperty = newActionEntry.FindPropertyRelative("finishAction");
-                if (newFinishActionProperty != null)
-                {
-                    newFinishActionProperty.managedReferenceValue = new FinishAction_GiveItem();
-                }
-            }
-        }
-    }
-
-    private static void DrawConditionRulesDetails(
-        SerializedProperty conditionsProperty,
-        string label = "Start Conditions",
-        string unavailableMessage = "Start conditions list is not available.",
-        string addButtonLabel = "Add Condition")
-    {
-        EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
-
-        if (conditionsProperty == null || !conditionsProperty.isArray)
-        {
-            EditorGUILayout.HelpBox(unavailableMessage, MessageType.Info);
-            return;
-        }
-
-        int removeIndex = -1;
-        for (int i = 0; i < conditionsProperty.arraySize; i++)
-        {
-            SerializedProperty conditionEntry = conditionsProperty.GetArrayElementAtIndex(i);
-            if (conditionEntry == null)
-            {
-                continue;
-            }
-
-            SerializedProperty conditionTypeProperty = conditionEntry.FindPropertyRelative("conditionType");
-            SerializedProperty conditionProperty = conditionEntry.FindPropertyRelative("condition");
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField($"Rule {i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
-                if (conditionTypeProperty != null)
-                {
-                    EditorGUI.BeginChangeCheck();
-                    EditorGUILayout.PropertyField(conditionTypeProperty, GUIContent.none);
-                    if (EditorGUI.EndChangeCheck())
-                    {
-                        EnsureConditionRuleType(conditionTypeProperty, conditionProperty);
-                    }
-                }
-                else
-                {
-                    GUILayout.Label("-");
-                }
-
-                if (GUILayout.Button("X", GUILayout.Width(24f)))
-                {
-                    removeIndex = i;
-                }
-
-                EditorGUILayout.EndHorizontal();
-                EnsureConditionRuleType(conditionTypeProperty, conditionProperty);
-                DrawManagedReferenceChildren(conditionProperty, "No condition rule assigned for this entry.");
-            }
-        }
-
-        if (removeIndex >= 0)
-        {
-            conditionsProperty.DeleteArrayElementAtIndex(removeIndex);
-        }
-
-        if (GUILayout.Button(addButtonLabel, GUILayout.Width(104f)))
-        {
-            int newIndex = conditionsProperty.arraySize;
-            conditionsProperty.arraySize++;
-
-            SerializedProperty newConditionEntry = conditionsProperty.GetArrayElementAtIndex(newIndex);
-            if (newConditionEntry != null)
-            {
-                SerializedProperty newConditionTypeProperty = newConditionEntry.FindPropertyRelative("conditionType");
-                if (newConditionTypeProperty != null && newConditionTypeProperty.propertyType == SerializedPropertyType.Enum)
-                {
-                    newConditionTypeProperty.enumValueIndex = 0;
-                }
-
-                SerializedProperty newConditionProperty = newConditionEntry.FindPropertyRelative("condition");
-                if (newConditionProperty != null)
-                {
-                    newConditionProperty.managedReferenceValue = ConditionRuleUtility.CreateConditionRule(ConditionRuleType.Level);
-                }
-            }
-        }
-    }
-
-    private static void DrawIdleRulesDetails(SerializedProperty finishActionsProperty, SerializedProperty conditionsProperty)
-    {
-        DrawFinishActionsDetails(finishActionsProperty);
-        EditorGUILayout.Space(4f);
-        DrawConditionRulesDetails(conditionsProperty);
-    }
-
-    private static string GetItemDetailsLabel(SerializedProperty purchaseRequirementsProperty, SerializedProperty combatDataProperty)
-    {
-        int purchaseRequirementCount = purchaseRequirementsProperty != null && purchaseRequirementsProperty.isArray
-            ? purchaseRequirementsProperty.arraySize
-            : 0;
-
-        SerializedProperty itemRoleProperty = combatDataProperty != null
-            ? combatDataProperty.FindPropertyRelative("itemRole")
-            : null;
-        SerializedProperty equipmentSlotProperty = combatDataProperty != null
-            ? combatDataProperty.FindPropertyRelative("equipmentSlot")
-            : null;
-
-        string combatLabel = "No Combat";
-        if (itemRoleProperty != null && itemRoleProperty.propertyType == SerializedPropertyType.Enum)
-        {
-            CombatItemRole role = (CombatItemRole)itemRoleProperty.enumValueIndex;
-            if (role == CombatItemRole.None)
-            {
-                combatLabel = "No Combat";
-            }
-            else if (role == CombatItemRole.Equipment && equipmentSlotProperty != null && equipmentSlotProperty.propertyType == SerializedPropertyType.Enum)
-            {
-                combatLabel = equipmentSlotProperty.enumDisplayNames[equipmentSlotProperty.enumValueIndex];
-            }
-            else
-            {
-                combatLabel = itemRoleProperty.enumDisplayNames[itemRoleProperty.enumValueIndex];
-            }
-        }
-
-        return $"{purchaseRequirementCount} Shop Req / {combatLabel}";
-    }
-
-    private static void DrawItemDetails(SerializedProperty itemTypeProperty, SerializedProperty purchaseRequirementsProperty, SerializedProperty combatDataProperty)
-    {
-        DrawConditionRulesDetails(
-            purchaseRequirementsProperty,
-            "Purchase Requirements",
-            "Purchase requirements list is not available.",
-            "Add Requirement");
-
-        EditorGUILayout.Space(4f);
-        DrawCombatDataDetails(itemTypeProperty, combatDataProperty);
-    }
-
-    private static void DrawCombatDataDetails(SerializedProperty itemTypeProperty, SerializedProperty combatDataProperty)
-    {
-        EditorGUILayout.LabelField("Combat Data", EditorStyles.miniBoldLabel);
-
-        if (combatDataProperty == null)
-        {
-            EditorGUILayout.HelpBox("Combat data is not available.", MessageType.Info);
-            return;
-        }
-
-        SerializedProperty itemRoleProperty = combatDataProperty.FindPropertyRelative("itemRole");
-        SerializedProperty equipmentSlotProperty = combatDataProperty.FindPropertyRelative("equipmentSlot");
-        SerializedProperty weaponAttackTypeProperty = combatDataProperty.FindPropertyRelative("weaponAttackType");
-        SerializedProperty attackIntervalSecondsProperty = combatDataProperty.FindPropertyRelative("attackIntervalSeconds");
-        SerializedProperty requiresAmmoProperty = combatDataProperty.FindPropertyRelative("requiresAmmo");
-        SerializedProperty statBonusesProperty = combatDataProperty.FindPropertyRelative("statBonuses");
-        SerializedProperty foodEffectProperty = combatDataProperty.FindPropertyRelative("foodEffect");
-        SerializedProperty potionEffectProperty = combatDataProperty.FindPropertyRelative("potionEffect");
-        SerializedProperty equipRequirementsProperty = combatDataProperty.FindPropertyRelative("equipRequirements");
-
-        Catalog_ItemType itemType = Catalog_ItemType.None;
-        if (itemTypeProperty != null && itemTypeProperty.propertyType == SerializedPropertyType.Enum)
-        {
-            itemType = (Catalog_ItemType)itemTypeProperty.enumValueIndex;
-        }
-
-        if (itemRoleProperty == null || itemRoleProperty.propertyType != SerializedPropertyType.Enum)
-        {
-            EditorGUILayout.HelpBox("Combat role is not available.", MessageType.Info);
-            return;
-        }
-
-        CombatItemRole role = (CombatItemRole)itemRoleProperty.enumValueIndex;
-        EditorGUILayout.LabelField("Role", role.ToString());
-
-        if (role == CombatItemRole.None)
-        {
-            EditorGUILayout.HelpBox("This item type does not use combat data.", MessageType.Info);
-            return;
-        }
-
-        if (role == CombatItemRole.Equipment)
-        {
-            if (itemType == Catalog_ItemType.Weapon)
-            {
-                EditorGUILayout.LabelField("Slot", "Weapon");
-            }
-            else if (itemType == Catalog_ItemType.Utility)
-            {
-                EditorGUILayout.LabelField("Slot", "Utility");
-            }
-            else if (itemType == Catalog_ItemType.Armor && equipmentSlotProperty != null)
-            {
-                DrawPropertyWithoutAttributes(equipmentSlotProperty);
-            }
-
-            bool isWeaponItem = equipmentSlotProperty != null
-                && equipmentSlotProperty.propertyType == SerializedPropertyType.Enum
-                && (CombatEquipmentSlot)equipmentSlotProperty.enumValueIndex == CombatEquipmentSlot.Weapon;
-
-            if (isWeaponItem)
-            {
-                if (weaponAttackTypeProperty != null)
-                {
-                    DrawPropertyWithoutAttributes(weaponAttackTypeProperty);
-                }
-
-                if (attackIntervalSecondsProperty != null)
-                {
-                    DrawPropertyWithoutAttributes(attackIntervalSecondsProperty);
-                    attackIntervalSecondsProperty.floatValue = Mathf.Max(0.1f, attackIntervalSecondsProperty.floatValue);
-                }
-
-                bool isRangedWeapon = weaponAttackTypeProperty != null
-                    && weaponAttackTypeProperty.propertyType == SerializedPropertyType.Enum
-                    && (CombatAttackType)weaponAttackTypeProperty.enumValueIndex == CombatAttackType.Ranged;
-
-                if (isRangedWeapon && requiresAmmoProperty != null)
-                {
-                    DrawPropertyWithoutAttributes(requiresAmmoProperty);
-                }
-            }
-
-            DrawExpandedProperty(statBonusesProperty, "Stat Bonuses");
-            DrawConditionRulesDetails(
-                equipRequirementsProperty,
-                "Equip Requirements",
-                "Equip requirements list is not available.",
-                "Add Requirement");
-            return;
-        }
-
-        if (role == CombatItemRole.Food)
-        {
-            EditorGUILayout.LabelField("Slot", "Food");
-            DrawExpandedProperty(foodEffectProperty, "Food Effect");
-            return;
-        }
-
-        if (role == CombatItemRole.Potion)
-        {
-            EditorGUILayout.LabelField("Slot", "Potion");
-            DrawExpandedProperty(potionEffectProperty, "Potion Effect");
-        }
-    }
-
-    private static void DrawExpandedProperty(SerializedProperty property, string label)
-    {
-        if (property == null)
-        {
-            EditorGUILayout.HelpBox($"{label} is not available.", MessageType.Info);
-            return;
-        }
-
-        DrawPropertyChildrenWithoutAttributes(property, label);
-    }
-
-    private static void EnsureConditionRuleType(SerializedProperty conditionTypeProperty, SerializedProperty conditionProperty)
-    {
-        if (conditionTypeProperty == null
-            || conditionTypeProperty.propertyType != SerializedPropertyType.Enum
-            || conditionProperty == null)
-        {
-            return;
-        }
-
-        ConditionRuleType selectedType = (ConditionRuleType)conditionTypeProperty.enumValueIndex;
-        if (conditionProperty.managedReferenceValue is ConditionRule existingCondition && existingCondition.RuleType == selectedType)
-        {
-            return;
-        }
-
-        conditionProperty.managedReferenceValue = ConditionRuleUtility.CreateConditionRule(selectedType);
-    }
-
-    private static void DrawManagedReferenceChildren(SerializedProperty managedReferenceProperty, string emptyMessage)
-    {
-        if (managedReferenceProperty == null || managedReferenceProperty.managedReferenceValue == null)
-        {
-            EditorGUILayout.HelpBox(emptyMessage, MessageType.Info);
-            return;
-        }
-
-        int parentDepth = managedReferenceProperty.depth;
-        bool previousExpandedState = managedReferenceProperty.isExpanded;
-        managedReferenceProperty.isExpanded = true;
-
-        SerializedProperty iterator = managedReferenceProperty.Copy();
-        SerializedProperty end = iterator.GetEndProperty();
-        bool enterChildren = true;
-
-        while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
-        {
-            if (iterator.depth == parentDepth + 1)
-            {
-                DrawPropertyWithoutAttributes(iterator);
-            }
-
-            enterChildren = false;
-        }
-
-        managedReferenceProperty.isExpanded = previousExpandedState;
-    }
-
-    private static void DrawPropertyChildrenWithoutAttributes(SerializedProperty parentProperty, string label)
-    {
-        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-        {
-            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
-            DrawDirectChildrenWithoutAttributes(parentProperty);
-        }
-    }
-
-    private static void DrawDirectChildrenWithoutAttributes(SerializedProperty parentProperty)
-    {
-        int parentDepth = parentProperty.depth;
-        SerializedProperty iterator = parentProperty.Copy();
-        SerializedProperty end = iterator.GetEndProperty();
-        bool enterChildren = true;
-
-        while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
-        {
-            if (iterator.depth == parentDepth + 1)
-            {
-                DrawPropertyWithoutAttributes(iterator);
-            }
-
-            enterChildren = false;
-        }
-    }
-
-    private static void DrawPropertyWithoutAttributes(SerializedProperty property)
-    {
-        if (property == null)
-        {
-            return;
-        }
-
-        GUIContent label = new(property.displayName);
-
-        switch (property.propertyType)
-        {
-            case SerializedPropertyType.Integer:
-                property.intValue = EditorGUILayout.IntField(label, property.intValue);
-                break;
-            case SerializedPropertyType.Float:
-                property.floatValue = EditorGUILayout.FloatField(label, property.floatValue);
-                break;
-            case SerializedPropertyType.Boolean:
-                property.boolValue = EditorGUILayout.Toggle(label, property.boolValue);
-                break;
-            case SerializedPropertyType.Enum:
-                property.enumValueIndex = EditorGUILayout.Popup(label, property.enumValueIndex, property.enumDisplayNames);
-                break;
-            case SerializedPropertyType.String:
-                property.stringValue = EditorGUILayout.TextField(label, property.stringValue);
-                break;
-            case SerializedPropertyType.ObjectReference:
-                property.objectReferenceValue = EditorGUILayout.ObjectField(label, property.objectReferenceValue, typeof(UnityEngine.Object), false);
-                break;
-            case SerializedPropertyType.Color:
-                property.colorValue = EditorGUILayout.ColorField(label, property.colorValue);
-                break;
-            case SerializedPropertyType.Vector2:
-                property.vector2Value = EditorGUILayout.Vector2Field(label.text, property.vector2Value);
-                break;
-            case SerializedPropertyType.Vector3:
-                property.vector3Value = EditorGUILayout.Vector3Field(label.text, property.vector3Value);
-                break;
-            case SerializedPropertyType.Vector4:
-                property.vector4Value = EditorGUILayout.Vector4Field(label.text, property.vector4Value);
-                break;
-            case SerializedPropertyType.Rect:
-                property.rectValue = EditorGUILayout.RectField(label, property.rectValue);
-                break;
-            case SerializedPropertyType.Bounds:
-                property.boundsValue = EditorGUILayout.BoundsField(label, property.boundsValue);
-                break;
-            case SerializedPropertyType.Vector2Int:
-                property.vector2IntValue = EditorGUILayout.Vector2IntField(label.text, property.vector2IntValue);
-                break;
-            case SerializedPropertyType.Vector3Int:
-                property.vector3IntValue = EditorGUILayout.Vector3IntField(label.text, property.vector3IntValue);
-                break;
-            case SerializedPropertyType.RectInt:
-                property.rectIntValue = EditorGUILayout.RectIntField(label, property.rectIntValue);
-                break;
-            case SerializedPropertyType.BoundsInt:
-                property.boundsIntValue = EditorGUILayout.BoundsIntField(label, property.boundsIntValue);
-                break;
-            case SerializedPropertyType.Generic:
-            case SerializedPropertyType.ManagedReference:
-                DrawPropertyChildrenWithoutAttributes(property, label.text);
-                break;
-            default:
-                EditorGUILayout.LabelField(label, new GUIContent($"Unsupported type: {property.propertyType}"));
-                break;
-        }
     }
 
     private static void DrawHeaderCell(string text, float width)
@@ -2301,36 +1499,6 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         jobData.idleDatas.RemoveAt(fromIndex);
         jobData.idleDatas.Insert(toIndex, movedRow);
         EditorUtility.SetDirty(jobData);
-
-        HashSet<int> expandedRows = GetJobIdleFinishActionRows(jobData);
-        if (expandedRows.Count == 0)
-        {
-            return;
-        }
-
-        HashSet<int> remappedRows = new();
-        foreach (int rowIndex in expandedRows)
-        {
-            if (rowIndex == fromIndex)
-            {
-                remappedRows.Add(toIndex);
-            }
-            else if (fromIndex < toIndex && rowIndex > fromIndex && rowIndex <= toIndex)
-            {
-                remappedRows.Add(rowIndex - 1);
-            }
-            else if (fromIndex > toIndex && rowIndex >= toIndex && rowIndex < fromIndex)
-            {
-                remappedRows.Add(rowIndex + 1);
-            }
-            else
-            {
-                remappedRows.Add(rowIndex);
-            }
-        }
-
-        expandedRows.Clear();
-        expandedRows.UnionWith(remappedRows);
     }
 
     private bool PassesItemFilter(ItemsData itemData)

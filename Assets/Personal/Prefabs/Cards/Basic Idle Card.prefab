@@ -588,7 +588,8 @@ GameObject:
   - component: {fileID: 4591329357604491078}
   - component: {fileID: 7951154799540050166}
   - component: {fileID: 5107855747949307032}
-  - component: {fileID: 4639939345814915804}
+  - component: {fileID: 5955629071019381020}
+  - component: {fileID: 3737083877611992590}
   m_Layer: 5
   m_Name: Basic Idle Card
   m_TagString: Untagged
@@ -659,7 +660,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &4639939345814915804
+--- !u!114 &5955629071019381020
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -668,10 +669,61 @@ MonoBehaviour:
   m_GameObject: {fileID: 5513986392827056228}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b58a61e46a4cce64885bc36349f6269d, type: 3}
+  m_Script: {fileID: 11500000, guid: 4f161f69f52e7cf489da85882cfb7214, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Pool_Object
-  sourcePoolId: 0
+  m_EditorClassIdentifier: Assembly-CSharp::Idle_Card
+  nameText: {fileID: 6712848859390597420}
+  iconImage: {fileID: 338198980796047079}
+  infoText: {fileID: 823555589093488847}
+  levelText: {fileID: 363653879749085339}
+  experienceText: {fileID: 4587683115443425772}
+  levelBarFill: {fileID: 3993728645073904393}
+  timerBarFill: {fileID: 62497704510716137}
+  toggleButton: {fileID: 3737083877611992590}
+--- !u!114 &3737083877611992590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5513986392827056228}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 0
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.745283, g: 0.745283, b: 0.745283, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 5107855747949307032}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &7017518535417347884
 GameObject:
   m_ObjectHideFlags: 0

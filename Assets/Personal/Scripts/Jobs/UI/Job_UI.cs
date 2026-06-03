@@ -38,6 +38,9 @@ public class Job_UI : MonoBehaviour
     [Tooltip("Menu opened when any spawned job button is clicked.")]
     public string menuToOpen;
 
+    [Tooltip("Optional: idle view to populate with the clicked job's idle cards.")]
+    public Idle_UI idleUI;
+
     [Title("Jobs (gathered from the Catalog)")]
     [MessageBox("No jobs gathered yet. Press 'Refresh Jobs From Catalog'.", nameof(HasNoJobs), MessageMode.Warning)]
     [ReadOnly, SerializeField]
@@ -76,10 +79,18 @@ public class Job_UI : MonoBehaviour
             button.SetText(job.jobName);
             button.SetImage(job.jobIcon);
 
-            if (button.button != null && menuManager != null && !string.IsNullOrWhiteSpace(menuToOpen))
+            if (button.button != null)
             {
+                Job_Data clicked = job;
                 string menu = menuToOpen;
-                button.button.onClick.AddListener(() => menuManager.Show(menu));
+                button.button.onClick.AddListener(() =>
+                {
+                    if (menuManager != null && !string.IsNullOrWhiteSpace(menu))
+                        menuManager.Show(menu);
+
+                    if (idleUI != null)
+                        idleUI.ShowJob(clicked);
+                });
             }
 
             spawned.Add(button);

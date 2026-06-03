@@ -55,30 +55,36 @@ Examples: `UI_Menu_Manager`, `UI_Menu_Button`, `Player_Input`, `Combat_Manager`,
   - `Assets/Personal/Scripts/Idles/Data/Idle_Data.cs`
 - **All `ScriptableObject` assets** under `Assets/Personal/Data/` (the actual data lists).
 
-> Note: the kept data scripts still reference older types (e.g. `Item_Amount`,
-> `ConditionRule`, `CombatItemDefinition`, `Idle_Instance`). Those live in `Old Scripts`
-> for now so everything keeps compiling. As systems are rebuilt, these dependencies will
-> be reworked and pointed at new code.
+> **Data SOs are now slimmed to generic fields only.** The advanced systems (conditions,
+> finish actions, purchase requirements, combat data, cycle costs/rewards) and their types
+> (`ConditionRule`, `Item_Amount`, `FinishAction`, `CombatItemDefinition`, `Idle_Instance`,
+> etc.) were **deleted**. Current data fields:
+> - `ItemsData`: icon, itemType, itemID, displayName, itemDescriptions, price
+> - `Job_Data`: jobName, jobIcon, jobCategory, idleDatas, idleCardPrefabOverride (+ helpers)
+> - `Idle_Data`: icon, guid, displayName, idleKind, interval, autoRestart,
+>   stopWhenCycleCannotRun, idleXPReward, jobXPReward
+> The **Catalog spreadsheet** was trimmed to match (removed the idle "Rules" and item
+> "Details" columns + their helpers). Re-add advanced fields here when those systems return.
 
-### Old (temporary — slated for deletion)
-- **`Assets/Personal/Old Scripts/`** — the previous, messy implementation.
-  It is kept only so the project compiles during the rebuild. **Do not build new features
-  on top of it.** It will be bulk-deleted later.
-- **Deleting unused old scripts requires the user's permission** (ask before removing).
+### Old scripts — DELETED
+- `Assets/Personal/Old Scripts/` (the previous implementation) has been **removed**. It's
+  still recoverable from git history if a reference is ever needed.
+- Anything reintroduced must be written fresh in the new structure — do not resurrect old code.
 
 ---
 
 ## Scripts folder layout
 
 ```
-Assets/Personal/
-├─ Old Scripts/          TEMP — previous implementation, to be deleted (outside Scripts/)
-└─ Scripts/
-   ├─ Catalog/           KEEP — catalog tooling + editor windows
-   ├─ Items/ItemsData.cs KEEP — item data definition ("Item_Data")
-   ├─ Jobs/Data/Job_Data.cs   KEEP — job data definition
-   ├─ Idles/Data/Idle_Data.cs KEEP — idle action data definition
-   └─ UI/                NEW — rebuilt UI systems live here
+Assets/Personal/Scripts/
+├─ Catalog/             KEEP — catalog tooling + editor windows (trimmed to generic fields)
+├─ Items/ItemsData.cs   KEEP — item data definition ("Item_Data"), slimmed
+├─ Jobs/Data/Job_Data.cs    KEEP — job data definition, slimmed
+├─ Jobs/UI/Job_UI.cs        NEW — spawns job buttons from the catalog
+├─ Idles/Data/Idle_Data.cs  KEEP — idle action data definition, slimmed
+├─ Idles/Runtime/           NEW — Idle_Runtime (live idle state)
+├─ Idles/UI/                NEW — Idle_Card, Idle_Card_Extension, Idle_UI
+└─ UI/                  NEW — UI_Menu_Manager, UI_Button
 ```
 
 New systems get their own top-level folder under `Scripts/` (e.g. `UI/`, `Inventory/`,
@@ -129,6 +135,62 @@ Exactly one panel is shown at a time (shop, inventory, idle views, combat, etc.)
   open that menu on click.
 
 > **Text:** the project uses **TextMeshPro** — new UI text fields use `TMP_Text`.
+
+### Idles — cards, view & runtime  *(implemented)*
+A job owns idle actions (`Job_Data.idleDatas`). The idle view shows one card per idle for
+the selected job. Layers:
+
+- **`Idle_Runtime`** ([Idles/Runtime/Idle_Runtime.cs](Assets/Personal/Scripts/Idles/Runtime/Idle_Runtime.cs))
+  — generic, UI-agnostic live state of one idle (`isRunning`, `timer`, `completedCycles`,
+  `level`/`currentXP`/`maxXP`, `ownerJobData`) with `OnUpdated`/`OnCycleCompleted` events.
+  `Tick()` advances the timer and returns cycles completed; `AddXP()` levels up via
+  `XP_Utility`. *Temporary name* — `Idle_Instance` is free now (old one deleted); consolidate
+  when convenient. **Economy (costs/rewards) and start conditions are still not implemented.**
+- **`Idle_Manager`** ([Idles/Runtime/Idle_Manager.cs](Assets/Personal/Scripts/Idles/Runtime/Idle_Manager.cs))
+  — one per scene (`Instance`). **Owns the runtimes** (created per job, persisted) and
+  **drives the tick loop**: each frame it ticks every running runtime (so idles progress even
+  off-screen) and, per completed cycle, awards **idle XP** to the idle and **job XP** to its
+  owning job (via `Job_Manager`). `GetRuntimes(job)`, `StartIdle`/`StopIdle`/`ToggleIdle`,
+  `StopAll`.
+- **`Idle_Card`** ([Idles/UI/Idle_Card.cs](Assets/Personal/Scripts/Idles/UI/Idle_Card.cs))
+  — base card view. `Bind(runtime)`/`Unbind()` (reusable → poolable). Drives the common
+  fields (name, icon, info, progress) and **auto-discovers `Idle_Card_Extension` components**
+  on its prefab, forwarding bind/refresh/unbind to them. Toggle button raises
+  `ToggleRequested` → `Idle_UI` routes it to `Idle_Manager.ToggleIdle`.
+- **`Idle_Card_Extension`** ([Idles/UI/Idle_Card_Extension.cs](Assets/Personal/Scripts/Idles/UI/Idle_Card_Extension.cs))
+  — abstract base for **special** card visuals. Add a subclass to a special prefab and drag
+  in its custom slots (manual, by design). Basic cards need none. This is how special idle
+  formatting is added **without bloating scripts or touching `Idle_Runtime`**.
+- **`Idle_UI`** ([Idles/UI/Idle_UI.cs](Assets/Personal/Scripts/Idles/UI/Idle_UI.cs))
+  — one per scene. `ShowJob(job)` spawns a card per idle and binds it. **Pools cards**
+  (keyed by prefab, pool root created at runtime — no manual pooling setup) so switching
+  jobs reuses cards instead of destroy/instantiate. Gets its runtimes from `Idle_Manager`
+  (falls back to local non-ticking runtimes if no manager is in the scene). Also has an
+  optional **Current Job Display** (`jobLevelText` / `jobExperienceText` / `jobLevelBarFill`)
+  that `ShowJob` binds to the viewed job's `Job_Runtime` — switch jobs and it updates to that
+  job's level/xp (live via `OnUpdated`).
+
+**Card-prefab resolution (per-job + default):** `job.idleCardPrefabOverride` if set, else
+`Idle_UI.defaultCardPrefab`. The override field lives on `Job_Data` (content travels with
+the catalog, not scene wiring).
+
+**Wiring:** `Job_UI` has an optional `idleUI` ref; clicking a job button opens the menu
+*and* calls `Idle_UI.ShowJob(thatJob)`.
+
+### Progression — XP & levels  *(implemented)*
+- **`XP_Utility`** ([Progression/XP_Utility.cs](Assets/Personal/Scripts/Progression/XP_Utility.cs))
+  — shared level curve `GetMaxXPForLevel(level)` (RuneScape/Melvor-style, recovered from the
+  old project) + `AddXP(ref level, ref currentXP, ref maxXP, amount)` that levels up and rolls
+  over the remainder. **Both idles and jobs use the same curve.**
+- **`Job_Runtime`** ([Jobs/Runtime/Job_Runtime.cs](Assets/Personal/Scripts/Jobs/Runtime/Job_Runtime.cs))
+  — a job's live `level`/`currentXP`/`maxXP` + `OnUpdated`, `AddXP`, `GetNormalizedLevelProgress`.
+  `Job_Data.maxLevel` (default 100) exists as a field but is **not wired to cap leveling yet**.
+- **`Job_Manager`** ([Jobs/Runtime/Job_Manager.cs](Assets/Personal/Scripts/Jobs/Runtime/Job_Manager.cs))
+  — one per scene (`Instance`). Owns a `Job_Runtime` per job (lazy, persisted). `GetRuntime(job)`,
+  `AddXP(job, amount)`, `Runtimes`. `Idle_Manager` feeds it job XP from idle cycles.
+
+> **Scene setup:** add one `Idle_Manager` and one `Job_Manager` to the scene. XP now accrues
+> live during play; there is **no save/persistence yet** (resets each play session).
 
 ---
 
