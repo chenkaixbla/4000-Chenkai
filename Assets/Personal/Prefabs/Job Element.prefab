@@ -307,7 +307,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -342,7 +342,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5623729499180926172}
-  - component: {fileID: 5523348590319035118}
+  - component: {fileID: 3072531709474554852}
   m_Layer: 5
   m_Name: Job Element
   m_TagString: Untagged
@@ -371,7 +371,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 370, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &5523348590319035118
+--- !u!114 &3072531709474554852
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -380,10 +380,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 6778712882789937146}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1a56e082991d1654d8daa6d247cb35cb, type: 3}
+  m_Script: {fileID: 11500000, guid: ffacfb27f415d4a45b21e49ec6a38416, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::JobElement
-  jobInstance: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::UI_Button
   button: {fileID: 8741427038455016605}
-  displayNameText: {fileID: 2318687450308929651}
-  iconImage: {fileID: 7713596285012200900}
+  label: {fileID: 2318687450308929651}
+  image: {fileID: 7713596285012200900}

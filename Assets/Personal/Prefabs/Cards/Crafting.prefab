@@ -4833,7 +4833,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5513986392827056228, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
       propertyPath: m_Name
-      value: Witch Pot
+      value: Crafting
       objectReference: {fileID: 0}
     - target: {fileID: 6046926215057715321, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
       propertyPath: lockRoot
@@ -4895,7 +4895,8 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 4639939345814915804, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
     m_RemovedGameObjects:
     - {fileID: 1499523180552144390, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}
     - {fileID: 8454827776821026457, guid: 937de9eb16c813243a1f08f589e00d06, type: 3}

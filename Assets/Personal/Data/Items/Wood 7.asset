@@ -12,13 +12,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ba601120d7a5c545a92afa04d787212, type: 3}
   m_Name: Wood 7
   m_EditorClassIdentifier: Assembly-CSharp::ItemsData
+  icon: {fileID: 21300000, guid: a74dacc9bfcf47749a8630eac3456429, type: 3}
   itemType: 1
   itemID: 0
   displayName: Wood
   itemDescriptions: 
   price: 120
   purchaseRequirements: []
-  icon: {fileID: 21300000, guid: a74dacc9bfcf47749a8630eac3456429, type: 3}
+  combatData:
+    itemRole: 0
+    sourceItemType: 1
+    equipmentSlot: 0
+    weaponAttackType: 0
+    attackIntervalSeconds: 2.4
+    requiresAmmo: 0
+    statBonuses:
+      meleeAccuracyBonus: 0
+      rangedAccuracyBonus: 0
+      meleeStrengthBonus: 0
+      rangedStrengthBonus: 0
+      meleeEvasionBonus: 0
+      rangedEvasionBonus: 0
+      magicEvasionBonus: 0
+      damageReductionPercent: 0
+      foodCooldownModifierPercent: 0
+    foodEffect:
+      healAmount: 1
+    potionEffect:
+      effectId: 
+      durationSeconds: 30
+      attackLevelBonus: 0
+      strengthLevelBonus: 0
+      defenceLevelBonus: 0
+      rangeLevelBonus: 0
+      statBonuses:
+        meleeAccuracyBonus: 0
+        rangedAccuracyBonus: 0
+        meleeStrengthBonus: 0
+        rangedStrengthBonus: 0
+        meleeEvasionBonus: 0
+        rangedEvasionBonus: 0
+        magicEvasionBonus: 0
+        damageReductionPercent: 0
+        foodCooldownModifierPercent: 0
+    equipRequirements: []
   references:
     version: 2
     RefIds: []

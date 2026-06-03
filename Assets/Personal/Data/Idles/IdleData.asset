@@ -15,9 +15,14 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 5f7f9aff1f965e045afaeea2d19ca9c8, type: 3}
   guid: 9747376f-7597-4d00-b4e9-1ff2358f2cd8
   displayName: xp tree 8
+  idleKind: 0
   interval: 12
+  autoRestart: 1
+  stopWhenCycleCannotRun: 1
   idleXPReward: 100
   jobXPReward: 50
+  cycleCosts: []
+  cycleRewards: []
   startConditions: []
   finishActions:
   - finishType: 0
@@ -34,7 +39,7 @@ MonoBehaviour:
     - rid: 5175728975481405518
       type: {class: FinishAction_GiveItem, ns: , asm: Assembly-CSharp}
       data:
-        itemsData: {fileID: 0}
+        itemData: {fileID: 0}
         quantity: 0
         baseDropChance: 1
         enableVerboseLogging: 1

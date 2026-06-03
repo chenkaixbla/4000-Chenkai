@@ -588,7 +588,7 @@ GameObject:
   - component: {fileID: 4591329357604491078}
   - component: {fileID: 7951154799540050166}
   - component: {fileID: 5107855747949307032}
-  - component: {fileID: 6046926215057715321}
+  - component: {fileID: 4639939345814915804}
   m_Layer: 5
   m_Name: Basic Idle Card
   m_TagString: Untagged
@@ -659,7 +659,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &6046926215057715321
+--- !u!114 &4639939345814915804
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -668,25 +668,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 5513986392827056228}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2ad2ce7a710b4a947947ed10a730866e, type: 3}
+  m_Script: {fileID: 11500000, guid: b58a61e46a4cce64885bc36349f6269d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Idle_Card
-  newInstanceOnStart: 1
-  idleData: {fileID: 0}
-  currentInstance:
-    idleData: {fileID: 0}
-    ownerJobInstance: {fileID: 0}
-    timer: 0
-    currentXP: 0
-    level: 0
-  lockRoot: {fileID: 8454827776821026457}
-  displayNameText: {fileID: 6712848859390597420}
-  subtitleText: {fileID: 823555589093488847}
-  iconImage: {fileID: 338198980796047079}
-  timerProgressBar: {fileID: 62497704510716137}
-  xpProgressBar: {fileID: 3993728645073904393}
-  xpProgressText: {fileID: 4587683115443425772}
-  levelText: {fileID: 363653879749085339}
+  m_EditorClassIdentifier: Assembly-CSharp::Pool_Object
+  sourcePoolId: 0
 --- !u!1 &7017518535417347884
 GameObject:
   m_ObjectHideFlags: 0
