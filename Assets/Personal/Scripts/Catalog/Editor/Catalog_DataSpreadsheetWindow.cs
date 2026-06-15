@@ -31,6 +31,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         Move
     }
 
+    private enum Jobs_Sort { Name, Category, MaxLevel, IdleCount }
+    private enum Items_Sort { Name, ID, Type, Price }
+    private enum Idles_Sort { Name, Interval, JobXP, Kind }
+    private enum Monsters_Sort { Name, CombatLevel, AttackType, Speed }
+
     private const string SettingsAssetPath = "Assets/Personal/Scripts/Catalog/Catalog_DataSettings.asset";
     private const string StretchTablesPrefKey = "Catalog_DataSpreadsheetWindow.StretchTables";
     private const float ObjectCellWidth = 220f;
@@ -57,6 +62,14 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
     private Catalog_Tab _activeTab;
     private Catalog_ItemFilter _itemFilter = Catalog_ItemFilter.All;
+    private Jobs_Sort _jobSort = Jobs_Sort.Name;
+    private Items_Sort _itemSort = Items_Sort.Name;
+    private Idles_Sort _idleSort = Idles_Sort.Name;
+    private Monsters_Sort _monsterSort = Monsters_Sort.Name;
+    private bool _jobSortDesc;
+    private bool _itemSortDesc;
+    private bool _idleSortDesc;
+    private bool _monsterSortDesc;
     private Vector2 _jobsTableScroll;
     private Vector2 _itemsScroll;
     private Vector2 _idleScroll;
@@ -168,6 +181,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         EditorGUILayout.Space(8f);
         EditorGUILayout.LabelField("Jobs Category", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("Sort By", GUILayout.Width(46f));
+        EditorGUI.BeginChangeCheck();
+        _jobSort = (Jobs_Sort)EditorGUILayout.EnumPopup(_jobSort, GUILayout.Width(120f));
+        bool jobSortChanged = EditorGUI.EndChangeCheck();
+        bool jobDesc = DrawSortDirection(_jobSortDesc);
+        if (jobDesc != _jobSortDesc) { _jobSortDesc = jobDesc; jobSortChanged = true; }
+        if (jobSortChanged) SortJobs();
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.BeginHorizontal();
         _pendingJobToAdd = (Job_Data)EditorGUILayout.ObjectField("Add Existing Job", _pendingJobToAdd, typeof(Job_Data), false);
@@ -623,6 +647,14 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         EditorGUILayout.BeginHorizontal();
         _itemFilter = (Catalog_ItemFilter)EditorGUILayout.EnumPopup("Item Filter", _itemFilter, GUILayout.Width(250f));
+        GUILayout.Space(12f);
+        GUILayout.Label("Sort By", GUILayout.Width(46f));
+        EditorGUI.BeginChangeCheck();
+        _itemSort = (Items_Sort)EditorGUILayout.EnumPopup(_itemSort, GUILayout.Width(120f));
+        bool itemSortChanged = EditorGUI.EndChangeCheck();
+        bool itemDesc = DrawSortDirection(_itemSortDesc);
+        if (itemDesc != _itemSortDesc) { _itemSortDesc = itemDesc; itemSortChanged = true; }
+        if (itemSortChanged) SortItems();
         GUILayout.FlexibleSpace();
         EditorGUILayout.EndHorizontal();
 
@@ -816,6 +848,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.LabelField("Idle Category", EditorStyles.boldLabel);
 
         DrawIdleCategoryFilter();
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("Sort By", GUILayout.Width(46f));
+        EditorGUI.BeginChangeCheck();
+        _idleSort = (Idles_Sort)EditorGUILayout.EnumPopup(_idleSort, GUILayout.Width(120f));
+        bool idleSortChanged = EditorGUI.EndChangeCheck();
+        bool idleDesc = DrawSortDirection(_idleSortDesc);
+        if (idleDesc != _idleSortDesc) { _idleSortDesc = idleDesc; idleSortChanged = true; }
+        if (idleSortChanged) SortIdles();
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.BeginHorizontal();
         _pendingIdleToAdd = (Idle_Data)EditorGUILayout.ObjectField("Add Existing Idle", _pendingIdleToAdd, typeof(Idle_Data), false);
@@ -1065,6 +1108,17 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         EditorGUILayout.LabelField("Monsters Category", EditorStyles.boldLabel);
 
         EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("Sort By", GUILayout.Width(46f));
+        EditorGUI.BeginChangeCheck();
+        _monsterSort = (Monsters_Sort)EditorGUILayout.EnumPopup(_monsterSort, GUILayout.Width(120f));
+        bool monsterSortChanged = EditorGUI.EndChangeCheck();
+        bool monsterDesc = DrawSortDirection(_monsterSortDesc);
+        if (monsterDesc != _monsterSortDesc) { _monsterSortDesc = monsterDesc; monsterSortChanged = true; }
+        if (monsterSortChanged) SortMonsters();
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
         _pendingMonsterToAdd = (Monster_Data)EditorGUILayout.ObjectField("Add Existing Monster", _pendingMonsterToAdd, typeof(Monster_Data), false);
         using (new EditorGUI.DisabledScope(_pendingMonsterToAdd == null))
         {
@@ -1268,6 +1322,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _itemRows.AddRange(LoadAssets<ItemsData>(itemsFolder));
         _idleRows.AddRange(LoadAssets<Idle_Data>(idleFolder));
         _monsterRows.AddRange(LoadAssets<Monster_Data>(monstersFolder));
+
+        SortJobs();
+        SortItems();
+        SortIdles();
+        SortMonsters();
 
         Dictionary<int, Job_Data> jobsById = new();
         foreach (Job_Data jobData in _jobRows)
@@ -1474,6 +1533,88 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         GUILayout.Label(text, EditorStyles.miniBoldLabel, GUILayout.Width(width));
     }
+
+    // --- Sorting (per tab; null/missing rows sink to the bottom, name is the tiebreaker) ---
+
+    private static bool DrawSortDirection(bool descending)
+    {
+        return GUILayout.Toggle(descending, descending ? "Desc ▼" : "Asc ▲", EditorStyles.miniButton, GUILayout.Width(70f));
+    }
+
+    private void SortJobs() => _jobRows.Sort(CompareJobs);
+    private void SortItems() => _itemRows.Sort(CompareItems);
+    private void SortIdles() => _idleRows.Sort(CompareIdles);
+    private void SortMonsters() => _monsterRows.Sort(CompareMonsters);
+
+    private int CompareJobs(Job_Data a, Job_Data b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int result = _jobSort switch
+        {
+            Jobs_Sort.Category => a.jobCategory.CompareTo(b.jobCategory),
+            Jobs_Sort.MaxLevel => a.maxLevel.CompareTo(b.maxLevel),
+            Jobs_Sort.IdleCount => (a.idleDatas?.Count ?? 0).CompareTo(b.idleDatas?.Count ?? 0),
+            _ => 0
+        };
+        if (result == 0) result = CompareText(JobName(a), JobName(b));
+        return _jobSortDesc ? -result : result;
+    }
+
+    private int CompareItems(ItemsData a, ItemsData b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int result = _itemSort switch
+        {
+            Items_Sort.ID => a.itemID.CompareTo(b.itemID),
+            Items_Sort.Type => a.itemType.CompareTo(b.itemType),
+            Items_Sort.Price => a.price.CompareTo(b.price),
+            _ => 0
+        };
+        if (result == 0) result = CompareText(ItemName(a), ItemName(b));
+        return _itemSortDesc ? -result : result;
+    }
+
+    private int CompareIdles(Idle_Data a, Idle_Data b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int result = _idleSort switch
+        {
+            Idles_Sort.Interval => a.interval.CompareTo(b.interval),
+            Idles_Sort.JobXP => a.jobXPReward.CompareTo(b.jobXPReward),
+            Idles_Sort.Kind => a.idleKind.CompareTo(b.idleKind),
+            _ => 0
+        };
+        if (result == 0) result = CompareText(IdleName(a), IdleName(b));
+        return _idleSortDesc ? -result : result;
+    }
+
+    private int CompareMonsters(Monster_Data a, Monster_Data b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int result = _monsterSort switch
+        {
+            Monsters_Sort.CombatLevel => a.CombatLevel.CompareTo(b.CombatLevel),
+            Monsters_Sort.AttackType => a.attackType.CompareTo(b.attackType),
+            Monsters_Sort.Speed => a.speed.CompareTo(b.speed),
+            _ => 0
+        };
+        if (result == 0) result = CompareText(MonsterName(a), MonsterName(b));
+        return _monsterSortDesc ? -result : result;
+    }
+
+    private static int CompareText(string a, string b) => string.Compare(a ?? string.Empty, b ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    private static string JobName(Job_Data j) => j == null ? string.Empty : (string.IsNullOrWhiteSpace(j.jobName) ? j.name : j.jobName);
+    private static string ItemName(ItemsData i) => i == null ? string.Empty : (string.IsNullOrWhiteSpace(i.displayName) ? i.name : i.displayName);
+    private static string IdleName(Idle_Data i) => i == null ? string.Empty : (string.IsNullOrWhiteSpace(i.displayName) ? i.name : i.displayName);
+    private static string MonsterName(Monster_Data m) => m == null ? string.Empty : (string.IsNullOrWhiteSpace(m.monsterName) ? m.name : m.monsterName);
 
     // Rewards are too complex to edit inline; this just selects + pings the asset so you
     // edit its rewards in the inspector.
