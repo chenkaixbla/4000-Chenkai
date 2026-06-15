@@ -42,12 +42,14 @@ public class Catalog_DataSettingsWindow : EditorWindow
         string jobsDataFolder = DrawFolderSettingField("Jobs Data Folder", _settings.jobsDataFolder);
         string itemsDataFolder = DrawFolderSettingField("Items Data Folder", _settings.itemsDataFolder);
         string idleDataFolder = DrawFolderSettingField("Idle Data Folder", _settings.idleDataFolder);
+        string monstersDataFolder = DrawFolderSettingField("Monsters Data Folder", _settings.monstersDataFolder);
         if (EditorGUI.EndChangeCheck())
         {
             Undo.RecordObject(_settings, "Update Catalog Settings");
             _settings.jobsDataFolder = NormalizePath(jobsDataFolder);
             _settings.itemsDataFolder = NormalizePath(itemsDataFolder);
             _settings.idleDataFolder = NormalizePath(idleDataFolder);
+            _settings.monstersDataFolder = NormalizePath(monstersDataFolder);
             EditorUtility.SetDirty(_settings);
             AssetDatabase.SaveAssets();
             Catalog_DataSpreadsheetWindow.RefreshAllOpenWindows();
@@ -56,6 +58,7 @@ public class Catalog_DataSettingsWindow : EditorWindow
         DrawFolderValidation(_settings.jobsDataFolder, "Jobs Data folder path is invalid. Catalog will use global search.");
         DrawFolderValidation(_settings.itemsDataFolder, "Items Data folder path is invalid. Catalog will use global search.");
         DrawFolderValidation(_settings.idleDataFolder, "Idle Data folder path is invalid. Catalog will use global search.");
+        DrawFolderValidation(_settings.monstersDataFolder, "Monsters Data folder path is invalid. Catalog will use global search.");
 
         EditorGUILayout.Space(6f);
         EditorGUILayout.BeginHorizontal();

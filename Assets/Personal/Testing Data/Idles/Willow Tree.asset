@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
+  m_Name: Willow Tree
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  guid: 702b813e-ce3b-4cea-a55c-ad4fe181837a
+  displayName: Willow Tree
+  idleKind: 0
+  interval: 5
+  autoRestart: 1
+  stopWhenCycleCannotRun: 1
+  idleXPReward: 22
+  jobXPReward: 12

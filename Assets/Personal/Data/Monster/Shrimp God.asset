@@ -9,28 +9,35 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 53a4af3b92454617af4b15c0a1000002, type: 3}
+  m_Script: {fileID: 11500000, guid: c02f23523e18a1e41805c604509c86f9, type: 3}
   m_Name: Shrimp God
-  m_EditorClassIdentifier: Assembly-CSharp::MonsterData
-  guid: 43010221-2f2d-453c-a2d9-3b612c7998e8
-  displayName: Shrimp God
-  icon: {fileID: 21300000, guid: fbb8753143357b746944acf045d91f3c, type: 3}
-  maxHp: 1000000
-  attackInterval: 2.4
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  monsterName: Shrimp God
+  description: The crustacean deity of the deep. Few who challenge it return.
+  healthLevel: 90
+  strengthLevel: 85
+  defenseLevel: 80
   attackType: 2
-  attackAccuracy: 100
-  maxHit: 1
-  damageReductionPercent: 80
-  meleeEvasion: 64
-  rangedEvasion: 64
-  magicEvasion: 64
-  normalDrops:
-  - itemData: {fileID: 11400000, guid: bc9fd901216fdf548935dfbe2da1f4de, type: 2}
-    dropChance: 1
-    minQuantity: 1
-    maxQuantity: 1000
-  firstTenBonusDrops:
-  - itemData: {fileID: 11400000, guid: 650ae359c3683fe41bb0ac92512dd965, type: 2}
-    dropChance: 1
-    minQuantity: 100
-    maxQuantity: 100
+  attackTypeLevel: 95
+  combatLevel: 350
+  speed: 1.5
+  criticalHitRate: 0.15
+  criticalHitBonus: 300
+  rewards:
+  - type: 0
+    chance: 100
+    coins: 500
+    item: {fileID: 0}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}
+  - type: 1
+    chance: 25
+    coins: 0
+    item: {fileID: 11400000, guid: 283a95214bb1eec43bce12985bd2dfa6, type: 2}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}

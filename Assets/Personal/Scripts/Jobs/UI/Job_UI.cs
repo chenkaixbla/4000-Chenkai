@@ -6,14 +6,13 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Spawns one <see cref="UI_Button"/> per job under a parent transform. The job list
-/// is gathered automatically from the Catalog (the same Job_Data assets the catalog
-/// spreadsheet edits), so the number of buttons and their text/icon always match the
-/// jobs that exist - no manual button placement.
+/// Spawns one <see cref="UI_Button"/> per job under a parent transform. Two job lists are
+/// gathered in the editor (real + testing) from <see cref="Game_Manager"/>'s folders, and
+/// the active one is chosen at runtime from <see cref="Game_Manager.dataSource"/> - so you
+/// can flip Real/Testing on the Game_Manager and just play, no re-gather needed.
 ///
-/// Workflow: the list is gathered in the editor (auto on add, or the Refresh button)
-/// and saved with the scene, then spawned at runtime. Building the assets at runtime
-/// can't use the editor's asset database, so the gather step happens in-editor.
+/// Gathering uses the editor asset database (can't run in a build), so it's a one-time
+/// editor step (the Refresh button); spawning happens at runtime from the serialized lists.
 /// </summary>
 [DisallowMultipleComponent]
 public class Job_UI : MonoBehaviour
@@ -41,14 +40,18 @@ public class Job_UI : MonoBehaviour
     [Tooltip("Optional: idle view to populate with the clicked job's idle cards.")]
     public Idle_UI idleUI;
 
-    [Title("Jobs (gathered from the Catalog)")]
-    [MessageBox("No jobs gathered yet. Press 'Refresh Jobs From Catalog'.", nameof(HasNoJobs), MessageMode.Warning)]
+    [Title("Jobs (gathered automatically on Build / Play)")]
+    [MessageBox("Job lists fill in automatically when you press Build or enter Play.", nameof(HasNoJobs), MessageMode.None)]
     [ReadOnly, SerializeField]
-    List<Job_Data> jobs = new();
+    List<Job_Data> realJobs = new();
 
+    [ReadOnly, SerializeField]
+    List<Job_Data> testingJobs = new();
+
+    // Only the buttons this script spawned, so a rebuild touches nothing else under the parent.
     readonly List<UI_Button> spawned = new();
 
-    bool HasNoJobs => jobs == null || jobs.Count == 0;
+    bool HasNoJobs => (realJobs == null || realJobs.Count == 0) && (testingJobs == null || testingJobs.Count == 0);
 
     void Start()
     {
@@ -56,7 +59,32 @@ public class Job_UI : MonoBehaviour
             Build();
     }
 
-    /// <summary>Clears any spawned buttons and creates one per gathered job.</summary>
+    void OnEnable()
+    {
+        Game_Manager.OnDataSourceChanged += HandleDataSourceChanged;
+    }
+
+    void OnDisable()
+    {
+        Game_Manager.OnDataSourceChanged -= HandleDataSourceChanged;
+    }
+
+    // Rebuild when the data source is flipped at runtime, so no manual Build is needed.
+    void HandleDataSourceChanged()
+    {
+        if (Application.isPlaying)
+            Build();
+    }
+
+    // The job list for the data source currently selected on the Game_Manager.
+    List<Job_Data> ActiveJobs()
+    {
+        Game_Manager gm = Game_Manager.Instance != null ? Game_Manager.Instance : FindFirstObjectByType<Game_Manager>();
+        Game_DataSource source = gm != null ? gm.dataSource : Game_DataSource.Real;
+        return source == Game_DataSource.Testing ? testingJobs : realJobs;
+    }
+
+    /// <summary>Clears any spawned buttons and creates one per job in the active data source.</summary>
     [Button]
     public void Build()
     {
@@ -68,6 +96,11 @@ public class Job_UI : MonoBehaviour
             return;
         }
 
+#if UNITY_EDITOR
+        GatherJobsIntoCaches();
+#endif
+
+        List<Job_Data> jobs = ActiveJobs();
         for (int i = 0; i < jobs.Count; i++)
         {
             Job_Data job = jobs[i];
@@ -104,6 +137,7 @@ public class Job_UI : MonoBehaviour
         return manager != null ? manager.GetMenuNames() : new[] { string.Empty };
     }
 
+    // Destroys only the buttons this script spawned - other children of buttonParent are left alone.
     void ClearSpawned()
     {
         for (int i = 0; i < spawned.Count; i++)
@@ -121,40 +155,40 @@ public class Job_UI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [Button]
-    [Tooltip("Pulls every Job_Data from the Catalog's jobs folder into the list.")]
-    void RefreshJobsFromCatalog()
+    // Refreshes both cached lists from Game_Manager's folders. Runs inside Build so the
+    // designer never has to gather manually.
+    void GatherJobsIntoCaches()
     {
-        jobs.Clear();
+        Game_Manager gm = Game_Manager.Instance != null ? Game_Manager.Instance : FindFirstObjectByType<Game_Manager>();
+        string realFolder = $"{(gm != null ? gm.realDataFolder : "Assets/Personal/Data")}/Jobs";
+        string testFolder = $"{(gm != null ? gm.testingDataFolder : "Assets/Personal/Testing Data")}/Jobs";
 
-        string folder = ResolveJobsFolder();
-        bool validFolder = !string.IsNullOrEmpty(folder) && AssetDatabase.IsValidFolder(folder);
+        realJobs = GatherJobs(realFolder);
+        testingJobs = GatherJobs(testFolder);
 
-        string[] guids = validFolder
-            ? AssetDatabase.FindAssets("t:Job_Data", new[] { folder })
-            : AssetDatabase.FindAssets("t:Job_Data");
+        if (!Application.isPlaying)
+            EditorUtility.SetDirty(this);
+    }
 
+    static List<Job_Data> GatherJobs(string folder)
+    {
+        List<Job_Data> result = new List<Job_Data>();
+        if (string.IsNullOrEmpty(folder) || !AssetDatabase.IsValidFolder(folder))
+        {
+            Debug.LogWarning($"[Job_UI] Jobs folder '{folder}' is not a valid project folder.");
+            return result;
+        }
+
+        string[] guids = AssetDatabase.FindAssets("t:Job_Data", new[] { folder });
         for (int i = 0; i < guids.Length; i++)
         {
             string path = AssetDatabase.GUIDToAssetPath(guids[i]);
             Job_Data job = AssetDatabase.LoadAssetAtPath<Job_Data>(path);
             if (job != null)
-                jobs.Add(job);
+                result.Add(job);
         }
 
-        EditorUtility.SetDirty(this);
-        Debug.Log($"[Job_UI] Gathered {jobs.Count} job(s) from the Catalog.", this);
-    }
-
-    static string ResolveJobsFolder()
-    {
-        string[] settingsGuids = AssetDatabase.FindAssets("t:Catalog_DataSettings");
-        if (settingsGuids.Length == 0)
-            return null;
-
-        string path = AssetDatabase.GUIDToAssetPath(settingsGuids[0]);
-        Catalog_DataSettings settings = AssetDatabase.LoadAssetAtPath<Catalog_DataSettings>(path);
-        return settings != null ? settings.jobsDataFolder : null;
+        return result;
     }
 #endif
 }

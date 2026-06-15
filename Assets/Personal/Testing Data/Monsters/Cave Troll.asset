@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c02f23523e18a1e41805c604509c86f9, type: 3}
+  m_Name: Cave Troll
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  monsterName: Cave Troll
+  description: A hulking troll with thick, stony hide.
+  healthLevel: 40
+  strengthLevel: 30
+  defenseLevel: 25
+  attackType: 0
+  attackTypeLevel: 20
+  combatLevel: 115
+  speed: 0.7
+  criticalHitRate: 0.04
+  criticalHitBonus: 200
+  rewards:
+  - type: 0
+    coins: 60
+    item: {fileID: 0}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}

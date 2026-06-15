@@ -9,7 +9,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         Jobs,
         Items,
-        Idles
+        Idles,
+        Monsters
     }
 
     private enum Catalog_ItemFilter
@@ -33,18 +34,21 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private const string SettingsAssetPath = "Assets/Personal/Scripts/Catalog/Catalog_DataSettings.asset";
     private const string StretchTablesPrefKey = "Catalog_DataSpreadsheetWindow.StretchTables";
     private const float ObjectCellWidth = 220f;
-    private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 24f };
+    private static readonly float[] JobsTableBaseWidths = { 30f, ObjectCellWidth, 160f, 90f, 80f, 80f, 70f, 24f };
     private static readonly float[] JobIdleTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 80f, 80f, 90f, 46f, 24f };
     private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 24f };
-    private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 95f, 85f, 200f, 24f };
+    private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 95f, 85f, 200f, 70f, 24f };
+    private static readonly float[] MonstersTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 90f, 70f, 70f, 24f };
 
     private readonly List<Job_Data> _jobRows = new();
     private readonly List<ItemsData> _itemRows = new();
     private readonly List<Idle_Data> _idleRows = new();
+    private readonly List<Monster_Data> _monsterRows = new();
     private readonly Dictionary<int, Idle_Data> _pendingIdleAdds = new();
     private readonly HashSet<int> _selectedJobIds = new();
     private readonly HashSet<int> _selectedItemIds = new();
     private readonly HashSet<int> _selectedIdleAssetIds = new();
+    private readonly HashSet<int> _selectedMonsterIds = new();
     private readonly Dictionary<int, HashSet<int>> _selectedIdleIds = new();
     private readonly HashSet<int> _expandedJobRows = new();
 
@@ -56,11 +60,13 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private Vector2 _jobsTableScroll;
     private Vector2 _itemsScroll;
     private Vector2 _idleScroll;
+    private Vector2 _monstersScroll;
     private bool _stretchTables = true;
 
     private Job_Data _pendingJobToAdd;
     private ItemsData _pendingItemToAdd;
     private Idle_Data _pendingIdleToAdd;
+    private Monster_Data _pendingMonsterToAdd;
 
     [MenuItem("Tools/Catalog/Data Spreadsheet")]
     public static void OpenWindow()
@@ -117,6 +123,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 DrawIdleCategory();
                 EditorGUILayout.EndScrollView();
                 break;
+            case Catalog_Tab.Monsters:
+                _monstersScroll = EditorGUILayout.BeginScrollView(_monstersScroll, !_stretchTables, true);
+                DrawMonstersCategory();
+                EditorGUILayout.EndScrollView();
+                break;
         }
     }
 
@@ -124,7 +135,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-        _activeTab = (Catalog_Tab)GUILayout.Toolbar((int)_activeTab, new[] { "Jobs", "Items", "Idles" }, EditorStyles.toolbarButton);
+        _activeTab = (Catalog_Tab)GUILayout.Toolbar((int)_activeTab, new[] { "Jobs", "Items", "Idles", "Monsters" }, EditorStyles.toolbarButton);
 
         GUILayout.FlexibleSpace();
 
@@ -210,9 +221,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("JobData", widths[1]);
         DrawHeaderCell("Job Name", widths[2]);
         DrawHeaderCell("Icon", widths[3]);
-        DrawHeaderCell("Max XP", widths[4]);
+        DrawHeaderCell("Max Level", widths[4]);
         DrawHeaderCell("Idle Count", widths[5]);
-        DrawHeaderCell("X", widths[6]);
+        DrawHeaderCell("Rewards", widths[6]);
+        DrawHeaderCell("X", widths[7]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -308,9 +320,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (row == null)
         {
-            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5];
+            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6];
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[6]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
             EditorGUILayout.EndHorizontal();
             return removeEmpty;
         }
@@ -320,12 +332,14 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         DrawCompactProperty(serializedRow.FindProperty("jobName"), widths[2]);
         DrawCompactProperty(serializedRow.FindProperty("jobIcon"), widths[3]);
-        DrawCompactProperty(serializedRow.FindProperty("maxXP"), widths[4]);
+        DrawCompactProperty(serializedRow.FindProperty("maxLevel"), widths[4]);
 
         SerializedProperty idleDatasProperty = serializedRow.FindProperty("idleDatas");
         EditorGUILayout.LabelField(idleDatasProperty != null ? idleDatasProperty.arraySize.ToString() : "-", GUILayout.Width(widths[5]));
 
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[6]));
+        DrawOpenButton(row, widths[6]);
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<Job_Data> { row }, "JobData");
@@ -962,7 +976,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         DrawHeaderCell("Job XP Reward", widths[4]);
         DrawHeaderCell("Icon", widths[5]);
         DrawHeaderCell("Jobs", widths[6]);
-        DrawHeaderCell("X", widths[7]);
+        DrawHeaderCell("Rewards", widths[7]);
+        DrawHeaderCell("X", widths[8]);
         EditorGUILayout.EndHorizontal();
     }
 
@@ -1003,7 +1018,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
             }
 
             GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
-            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[8]));
             EditorGUILayout.EndHorizontal();
             return removeEmpty;
         }
@@ -1018,7 +1033,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         EditorGUILayout.LabelField(GetIdleMembershipLabel(row), GUILayout.Width(widths[6]));
 
-        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
+        DrawOpenButton(row, widths[7]);
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[8]));
         if (removeRow)
         {
             removeRow = DeleteAssetsWithConfirmation(new List<Idle_Data> { row }, "Idle_Data");
@@ -1042,6 +1059,188 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return removeRow;
     }
 
+    private void DrawMonstersCategory()
+    {
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("Monsters Category", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        _pendingMonsterToAdd = (Monster_Data)EditorGUILayout.ObjectField("Add Existing Monster", _pendingMonsterToAdd, typeof(Monster_Data), false);
+        using (new EditorGUI.DisabledScope(_pendingMonsterToAdd == null))
+        {
+            if (GUILayout.Button("Add", GUILayout.Width(70f)))
+            {
+                AddUnique(_monsterRows, _pendingMonsterToAdd);
+                _pendingMonsterToAdd = null;
+            }
+        }
+
+        if (GUILayout.Button("New Monster_Data", GUILayout.Width(130f)))
+        {
+            Monster_Data created = CreateDataAsset<Monster_Data>(GetSettingsFolderPath(_settings?.monstersDataFolder), "Monster_Data");
+            AddUnique(_monsterRows, created);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        DrawDropZone<Monster_Data>(
+            "Drop Monster_Data assets here",
+            droppedMonster =>
+            {
+                AddUnique(_monsterRows, droppedMonster);
+            });
+
+        DrawMonstersBulkActions();
+        float[] monsterColumnWidths = GetTableColumnWidths(position.width - 28f, MonstersTableBaseWidths);
+        DrawMonstersHeader(monsterColumnWidths);
+
+        int removeIndex = -1;
+        for (int i = 0; i < _monsterRows.Count; i++)
+        {
+            if (DrawMonsterRow(i, monsterColumnWidths))
+            {
+                removeIndex = i;
+            }
+        }
+
+        if (removeIndex >= 0)
+        {
+            _monsterRows.RemoveAt(removeIndex);
+        }
+    }
+
+    private void DrawMonstersHeader(float[] widths)
+    {
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+        DrawHeaderCell("Sel", widths[0]);
+        DrawHeaderCell("Monster_Data", widths[1]);
+        DrawHeaderCell("Name", widths[2]);
+        DrawHeaderCell("Combat Lv", widths[3]);
+        DrawHeaderCell("Atk Type", widths[4]);
+        DrawHeaderCell("Speed", widths[5]);
+        DrawHeaderCell("Rewards", widths[6]);
+        DrawHeaderCell("X", widths[7]);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawMonstersBulkActions()
+    {
+        PruneSelection(_selectedMonsterIds, _monsterRows);
+
+        int selectedCount = _selectedMonsterIds.Count;
+
+        EditorGUILayout.BeginHorizontal();
+
+        if (GUILayout.Button("Select All", GUILayout.Width(84f)))
+        {
+            foreach (Monster_Data monsterData in _monsterRows)
+            {
+                if (monsterData != null)
+                {
+                    _selectedMonsterIds.Add(monsterData.GetInstanceID());
+                }
+            }
+        }
+
+        if (GUILayout.Button("Clear", GUILayout.Width(56f)))
+        {
+            _selectedMonsterIds.Clear();
+        }
+
+        using (new EditorGUI.DisabledScope(selectedCount == 0))
+        {
+            if (GUILayout.Button("Delete Selected", GUILayout.Width(112f)))
+            {
+                List<Monster_Data> selectedMonsters = GetSelectedObjects(_monsterRows, _selectedMonsterIds);
+                if (DeleteAssetsWithConfirmation(selectedMonsters, "Monster_Data"))
+                {
+                    HashSet<int> deletedIds = new();
+                    foreach (Monster_Data monsterData in selectedMonsters)
+                    {
+                        if (monsterData != null)
+                        {
+                            deletedIds.Add(monsterData.GetInstanceID());
+                        }
+                    }
+
+                    _monsterRows.RemoveAll(monsterData => monsterData == null || deletedIds.Contains(monsterData.GetInstanceID()));
+                    _selectedMonsterIds.ExceptWith(deletedIds);
+                }
+            }
+        }
+
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.LabelField($"Selected: {selectedCount}", GUILayout.Width(90f));
+
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private bool DrawMonsterRow(int rowIndex, float[] widths)
+    {
+        Monster_Data row = _monsterRows[rowIndex];
+        int rowId = row != null ? row.GetInstanceID() : 0;
+
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+
+        bool selected = row != null && _selectedMonsterIds.Contains(rowId);
+        bool nextSelected = EditorGUILayout.Toggle(selected, GUILayout.Width(widths[0]));
+        if (row != null && nextSelected != selected)
+        {
+            SetSelection(_selectedMonsterIds, rowId, nextSelected);
+        }
+
+        EditorGUI.BeginChangeCheck();
+        Monster_Data changedRow = (Monster_Data)EditorGUILayout.ObjectField(row, typeof(Monster_Data), false, GUILayout.Width(widths[1]));
+        if (EditorGUI.EndChangeCheck())
+        {
+            if (row != null && changedRow != row)
+            {
+                _selectedMonsterIds.Remove(rowId);
+            }
+
+            _monsterRows[rowIndex] = changedRow;
+            row = changedRow;
+            rowId = row != null ? row.GetInstanceID() : 0;
+        }
+
+        if (row == null)
+        {
+            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6];
+            GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
+            EditorGUILayout.EndHorizontal();
+            return removeEmpty;
+        }
+
+        SerializedObject serializedRow = new SerializedObject(row);
+        serializedRow.Update();
+
+        DrawCompactProperty(serializedRow.FindProperty("monsterName"), widths[2]);
+        EditorGUILayout.LabelField(row.CombatLevel.ToString(), GUILayout.Width(widths[3]));
+        DrawCompactProperty(serializedRow.FindProperty("attackType"), widths[4]);
+        DrawCompactProperty(serializedRow.FindProperty("speed"), widths[5]);
+
+        DrawOpenButton(row, widths[6]);
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
+        if (removeRow)
+        {
+            removeRow = DeleteAssetsWithConfirmation(new List<Monster_Data> { row }, "Monster_Data");
+            if (removeRow)
+            {
+                _selectedMonsterIds.Remove(rowId);
+            }
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        if (serializedRow.ApplyModifiedProperties())
+        {
+            EditorUtility.SetDirty(row);
+        }
+
+        return removeRow;
+    }
+
     private void RefreshRowsFromFolders()
     {
         LoadOrCreateSettings();
@@ -1051,13 +1250,16 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         string jobsFolder = GetSettingsFolderPath(_settings?.jobsDataFolder);
         string itemsFolder = GetSettingsFolderPath(_settings?.itemsDataFolder);
         string idleFolder = GetSettingsFolderPath(_settings?.idleDataFolder);
+        string monstersFolder = GetSettingsFolderPath(_settings?.monstersDataFolder);
 
         _jobRows.Clear();
         _itemRows.Clear();
         _idleRows.Clear();
+        _monsterRows.Clear();
         _selectedJobIds.Clear();
         _selectedItemIds.Clear();
         _selectedIdleAssetIds.Clear();
+        _selectedMonsterIds.Clear();
         _selectedIdleIds.Clear();
         _expandedJobRows.Clear();
         _pendingIdleAdds.Clear();
@@ -1065,6 +1267,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _jobRows.AddRange(LoadAssets<Job_Data>(jobsFolder));
         _itemRows.AddRange(LoadAssets<ItemsData>(itemsFolder));
         _idleRows.AddRange(LoadAssets<Idle_Data>(idleFolder));
+        _monsterRows.AddRange(LoadAssets<Monster_Data>(monstersFolder));
 
         Dictionary<int, Job_Data> jobsById = new();
         foreach (Job_Data jobData in _jobRows)
@@ -1270,6 +1473,20 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private static void DrawHeaderCell(string text, float width)
     {
         GUILayout.Label(text, EditorStyles.miniBoldLabel, GUILayout.Width(width));
+    }
+
+    // Rewards are too complex to edit inline; this just selects + pings the asset so you
+    // edit its rewards in the inspector.
+    private static void DrawOpenButton(UnityEngine.Object asset, float width)
+    {
+        using (new EditorGUI.DisabledScope(asset == null))
+        {
+            if (GUILayout.Button("Open", GUILayout.Width(width)))
+            {
+                Selection.activeObject = asset;
+                EditorGUIUtility.PingObject(asset);
+            }
+        }
     }
 
     private static void DrawCompactProperty(SerializedProperty property, float width)

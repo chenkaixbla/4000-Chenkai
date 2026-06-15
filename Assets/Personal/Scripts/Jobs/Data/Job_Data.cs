@@ -26,6 +26,11 @@ public class Job_Data : ScriptableObject
     [Tooltip("Optional: special idle-card prefab for this job's idles. Empty = use Idle_UI's default card.")]
     public Idle_Card idleCardPrefabOverride;
 
+    [Line]
+
+    [Title("Rewards (on level up)")]
+    public List<Reward_Leveled> rewards = new();
+
     public Idle_Data GetPrimaryIdleData()
     {
         if (idleDatas == null)

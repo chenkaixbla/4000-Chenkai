@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EditorAttributes;
 using UnityEngine;
 
@@ -29,6 +30,9 @@ public class Idle_Data : ScriptableObject
     [Title("Progression")]
     [Min(0)] public int idleXPReward = 10;
     [Min(0)] public int jobXPReward = 5;
+
+    [Title("Rewards (on level up)")]
+    public List<Reward_Leveled> rewards = new();
 
     void OnEnable() => EnsureGuid();
 

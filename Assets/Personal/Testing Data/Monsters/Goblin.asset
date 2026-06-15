@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c02f23523e18a1e41805c604509c86f9, type: 3}
+  m_Name: Goblin
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  monsterName: Goblin
+  description: A small but vicious goblin raider.
+  healthLevel: 10
+  strengthLevel: 8
+  defenseLevel: 5
+  attackType: 0
+  attackTypeLevel: 7
+  combatLevel: 30
+  speed: 1
+  criticalHitRate: 0.05
+  criticalHitBonus: 200
+  rewards:
+  - type: 0
+    coins: 12
+    item: {fileID: 0}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}
+  - type: 1
+    coins: 0
+    item: {fileID: 11400000, guid: 535cb35997924defa3c6d1193f7bb6ce, type: 2}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}

@@ -94,6 +94,49 @@ New systems get their own top-level folder under `Scripts/` (e.g. `UI/`, `Invent
 
 ## Systems
 
+### Rewards — shared payout type  *(data definition only)*
+- **`Reward`** ([Rewards/Reward.cs](Assets/Personal/Scripts/Rewards/Reward.cs)) — one serializable
+  reward entry reused anywhere something pays out. `Reward_Type` enum: `Coins`, `Item` (+amount),
+  `XP`, `UnlockJob` (drag a `Job_Data`), `UnlockIdle` (drag an `Idle_Data` — runtime finds its
+  owning job, no need to pick the job). `[ShowField]` shows only the fields for the chosen type.
+  Each reward also has a `chance` (0–100%, default 100) with a `Rolls()` helper for drop odds.
+  > Caveat: `[ShowField]` on a `[Serializable]` type nested in a `List<>` can throw an
+  > **editor-only** UI Toolkit binding exception (`BindTree` index out of range) when that asset
+  > is in the Inspector during a rebuild (e.g. entering Play). It's a console annoyance only —
+  > data, runtime gameplay, and builds are unaffected (EditorAttributes drawers don't ship in
+  > builds). Kept by preference; swap to a custom IMGUI drawer if the spam bites.
+- **`Reward_Leveled`** wraps a `Reward` with a level trigger (`Reward_Trigger`): `OnEachLevel`
+  (every level up) or `AtLevel` (once, when a specific level is reached). `ShouldGrant(level)`
+  evaluates it. `Job_Data` and `Idle_Data` hold `List<Reward_Leveled>` (level-up rewards, checked
+  against the job's / idle's level); `Monster_Data` holds a plain `List<Reward>` (on defeat).
+  Granting/unlock resolution is runtime work, **not built yet**.
+
+### Combat — monster data  *(data definition only)*
+- **`Monster_Data`** ([Combat/Data/Monster_Data.cs](Assets/Personal/Scripts/Combat/Data/Monster_Data.cs))
+  — enemy data, built to mirror the player's combat model so both fight on the same terms:
+  the four levels (`healthLevel`/`strengthLevel`/`defenseLevel` + `attackType` & `attackTypeLevel`)
+  whose sum is `CombatLevel` (each caps at 99), plus the non-derived attributes (`speed`,
+  `criticalHitRate`, `criticalHitBonus`=200) and a `List<Reward>` (on defeat). Derived stats (max HP, damage
+  reduction, damage range) are **not stored** — the future combat system computes them from the
+  levels with the same formulas as the player. `Combat_AttackType` enum (`Melee`/`Ranged`/`Magic`)
+  is shared by player & monster. No combat runtime/UI yet.
+  - **Catalog:** the spreadsheet has a **Monsters tab** (name, combat level, attack type, speed).
+    Tabs with a rewards list (Jobs, Idles, Monsters) show a **Rewards column with an `Open` button**
+    that selects + pings the SO (rewards are edited in the inspector, not inline). A
+    `monstersDataFolder` was added to `Catalog_DataSettings` and its settings window.
+
+### Game — data source  *(implemented; consumers wired later)*
+- **`Game_Manager`** ([Game/Game_Manager.cs](Assets/Personal/Scripts/Game/Game_Manager.cs))
+  — one per scene (`Instance`). Holds a `Game_DataSource` enum (`Real` / `Testing`) and the
+  two root folders (`Assets/Personal/Data`, `Assets/Personal/Testing Data`). Exposes
+  `ActiveDataFolder` + `JobsFolder`/`ItemsFolder`/`IdlesFolder` so gathering code reads one
+  switch instead of a hard-coded path. **`Job_UI` consumes it** (real vs testing jobs);
+  `Idle_UI` follows automatically since idles travel on each `Job_Data`.
+
+> **Testing data:** a full testing set lives in `Assets/Personal/Testing Data/`
+> (3 jobs, 14 idles, 24 items — icons blank, everything else filled), mirroring the real
+> jobs. Real data stays under `Assets/Personal/Data/`.
+
 ### UI — Menu switching  *(implemented)*
 The main canvas has buttons scattered around it and one large area where menu panels live.
 Exactly one panel is shown at a time (shop, inventory, idle views, combat, etc.).
@@ -126,11 +169,11 @@ Exactly one panel is shown at a time (shop, inventory, idle views, combat, etc.)
   `[Button] Auto Assign` (and `Reset`) grab the three refs from children.
 - **`Job_UI`** ([Jobs/UI/Job_UI.cs](Assets/Personal/Scripts/Jobs/UI/Job_UI.cs)) — spawns one
   `UI_Button` (`buttonPrefab`) per job under `buttonParent`, setting each button's text to
-  `jobName` and image to `jobIcon`. The job list is **gathered from the Catalog**
-  (`Job_Data` assets in the catalog's jobs folder) via `Refresh Jobs From Catalog`
-  (editor-only, uses `AssetDatabase`) into a serialized list, then spawned at runtime
-  (`buildOnStart` / `[Button] Build`). Editor gathers, runtime spawns — designer presses
-  one button, the manager does the rest. `Job_UI` references the `UI_Menu_Manager` and a
+  `jobName` and image to `jobIcon`. `Build()` **auto-gathers** both job lists (real + testing)
+  from `Game_Manager`'s folders (editor-only, `AssetDatabase`) and spawns whichever matches
+  `Game_Manager.dataSource`. It builds on `Start` (`buildOnStart`) and **rebuilds itself live**
+  when the data source is flipped (subscribes to `Game_Manager.OnDataSourceChanged`) — no manual
+  Refresh/Build. `Job_UI` references the `UI_Menu_Manager` and a
   `[Dropdown]` `menuToOpen` (its menu names); every spawned job button is auto-wired to
   open that menu on click.
 

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c02f23523e18a1e41805c604509c86f9, type: 3}
+  m_Name: Dark Mage
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  monsterName: Dark Mage
+  description: A robed caster wielding shadow magic.
+  healthLevel: 18
+  strengthLevel: 5
+  defenseLevel: 10
+  attackType: 2
+  attackTypeLevel: 18
+  combatLevel: 51
+  speed: 0.9
+  criticalHitRate: 0.06
+  criticalHitBonus: 220
+  rewards:
+  - type: 0
+    chance: 100
+    coins: 30
+    item: {fileID: 0}
+    itemAmount: 1
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}
+  - type: 1
+    chance: 100
+    coins: 0
+    item: {fileID: 11400000, guid: c507c6b9057241eaa32620a9b4931310, type: 2}
+    itemAmount: 2
+    xp: 0
+    unlockJob: {fileID: 0}
+    unlockIdle: {fileID: 0}

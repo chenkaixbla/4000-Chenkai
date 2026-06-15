@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2ef9e055d07c884381a4162911d8fcd, type: 3}
+  m_Name: Leather Gloves
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  guid: dafbb0bd-4223-4d41-9653-15a722a1107f
+  displayName: Leather Gloves
+  idleKind: 2
+  interval: 4
+  autoRestart: 1
+  stopWhenCycleCannotRun: 1
+  idleXPReward: 18
+  jobXPReward: 9
+  rewards:
+  - trigger: 0
+    level: 0
+    reward:
+      type: 1
+      chance: 0
+      coins: 0
+      item: {fileID: 0}
+      itemAmount: 0
+      xp: 0
+      unlockJob: {fileID: 0}
+      unlockIdle: {fileID: 0}

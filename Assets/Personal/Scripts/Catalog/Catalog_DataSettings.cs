@@ -6,4 +6,5 @@ public class Catalog_DataSettings : ScriptableObject
     public string jobsDataFolder = "Assets";
     public string itemsDataFolder = "Assets";
     public string idleDataFolder = "Assets";
+    public string monstersDataFolder = "Assets";
 }
