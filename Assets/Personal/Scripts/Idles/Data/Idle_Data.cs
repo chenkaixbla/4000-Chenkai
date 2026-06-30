@@ -20,6 +20,7 @@ public class Idle_Data : ScriptableObject
     [AssetPreview(previewHeight: 96f)] public Sprite icon;
     public string guid;
     public string displayName;
+    [DisableField(nameof(LockIdleKind))]
     public Idle_Kind idleKind = Idle_Kind.Woodcutting;
 
     [Title("Timing")]
@@ -34,9 +35,12 @@ public class Idle_Data : ScriptableObject
     [Title("Rewards (on level up)")]
     public List<Reward_Leveled> rewards = new();
 
-    void OnEnable() => EnsureGuid();
+    protected virtual void OnEnable() => EnsureGuid();
 
-    void OnValidate() => EnsureGuid();
+    protected virtual void OnValidate() => EnsureGuid();
+
+    // Subclasses tied to a fixed kind (e.g. Idle_Data_Crafting) override this to lock the field.
+    protected virtual bool LockIdleKind => false;
 
     [Button]
     void GenerateGUID() => guid = Guid.NewGuid().ToString();

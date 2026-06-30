@@ -36,29 +36,25 @@ public class Catalog_DataSettingsWindow : EditorWindow
         }
 
         EditorGUILayout.Space(8f);
-        EditorGUILayout.LabelField("Catalog Data Folders", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Catalog Data Roots", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Each root holds Jobs / Items / Idles / Monsters subfolders. Switch Real vs Testing from the Spreadsheet toolbar.", MessageType.Info);
 
         EditorGUI.BeginChangeCheck();
-        string jobsDataFolder = DrawFolderSettingField("Jobs Data Folder", _settings.jobsDataFolder);
-        string itemsDataFolder = DrawFolderSettingField("Items Data Folder", _settings.itemsDataFolder);
-        string idleDataFolder = DrawFolderSettingField("Idle Data Folder", _settings.idleDataFolder);
-        string monstersDataFolder = DrawFolderSettingField("Monsters Data Folder", _settings.monstersDataFolder);
+        string realDataFolder = DrawFolderSettingField("Real Data Folder", _settings.realDataFolder);
+        string testingDataFolder = DrawFolderSettingField("Testing Data Folder", _settings.testingDataFolder);
         if (EditorGUI.EndChangeCheck())
         {
             Undo.RecordObject(_settings, "Update Catalog Settings");
-            _settings.jobsDataFolder = NormalizePath(jobsDataFolder);
-            _settings.itemsDataFolder = NormalizePath(itemsDataFolder);
-            _settings.idleDataFolder = NormalizePath(idleDataFolder);
-            _settings.monstersDataFolder = NormalizePath(monstersDataFolder);
+            _settings.realDataFolder = NormalizePath(realDataFolder);
+            _settings.testingDataFolder = NormalizePath(testingDataFolder);
             EditorUtility.SetDirty(_settings);
             AssetDatabase.SaveAssets();
+            Catalog_DataSettings.RaiseChanged();
             Catalog_DataSpreadsheetWindow.RefreshAllOpenWindows();
         }
 
-        DrawFolderValidation(_settings.jobsDataFolder, "Jobs Data folder path is invalid. Catalog will use global search.");
-        DrawFolderValidation(_settings.itemsDataFolder, "Items Data folder path is invalid. Catalog will use global search.");
-        DrawFolderValidation(_settings.idleDataFolder, "Idle Data folder path is invalid. Catalog will use global search.");
-        DrawFolderValidation(_settings.monstersDataFolder, "Monsters Data folder path is invalid. Catalog will use global search.");
+        DrawFolderValidation(_settings.realDataFolder, "Real Data folder path is invalid. Catalog will use global search.");
+        DrawFolderValidation(_settings.testingDataFolder, "Testing Data folder path is invalid. Catalog will use global search.");
 
         EditorGUILayout.Space(6f);
         EditorGUILayout.BeginHorizontal();

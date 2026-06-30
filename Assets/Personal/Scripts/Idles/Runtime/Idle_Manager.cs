@@ -12,9 +12,8 @@ using UnityEngine;
 /// cards to them; this manager just makes sure every running idle ticks each frame.
 /// </summary>
 [DisallowMultipleComponent]
-public class Idle_Manager : MonoBehaviour
+public class Idle_Manager : Singleton<Idle_Manager>
 {
-    public static Idle_Manager Instance { get; private set; }
 
     [Title("Runtime")]
     [ReadOnly, SerializeField]
@@ -31,20 +30,6 @@ public class Idle_Manager : MonoBehaviour
     [Title("Tracked Idle Instances")]
     [ReadOnly, SerializeField]
     List<Idle_Runtime> allRuntimes = new();
-
-    void Awake()
-    {
-        if (Instance != null && Instance != this)
-            Debug.LogWarning($"[Idle_Manager] A second Idle_Manager '{name}' was found. There should be one per scene.", this);
-
-        Instance = this;
-    }
-
-    void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
 
     void Update()
     {

@@ -152,6 +152,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         GUILayout.FlexibleSpace();
 
+        DrawDataSourceDropdown();
+
         if (GUILayout.Button("Settings", EditorStyles.toolbarButton, GUILayout.Width(70f)))
         {
             Catalog_DataSettingsWindow.OpenWindow();
@@ -171,6 +173,28 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         EditorGUILayout.EndHorizontal();
+    }
+
+    // Real/Testing source dropdown. Writes Catalog_DataSettings (the single source of truth) and
+    // reloads the spreadsheet; SetDataSource fires OnDataSourceChanged so manager editors refresh too.
+    private void DrawDataSourceDropdown()
+    {
+        if (_settings == null)
+        {
+            return;
+        }
+
+        EditorGUI.BeginChangeCheck();
+        Catalog_DataSource nextSource = (Catalog_DataSource)EditorGUILayout.EnumPopup(_settings.dataSource, EditorStyles.toolbarPopup, GUILayout.Width(90f));
+        if (EditorGUI.EndChangeCheck() && nextSource != _settings.dataSource)
+        {
+            Undo.RecordObject(_settings, "Change Data Source");
+            _settings.SetDataSource(nextSource);
+            EditorUtility.SetDirty(_settings);
+            AssetDatabase.SaveAssets();
+            RefreshRowsFromFolders();
+            Repaint();
+        }
     }
 
     private void DrawJobsCategory()
@@ -206,7 +230,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New JobData", GUILayout.Width(110f)))
         {
-            Job_Data created = CreateDataAsset<Job_Data>(GetSettingsFolderPath(_settings?.jobsDataFolder), "JobData");
+            Job_Data created = CreateDataAsset<Job_Data>(GetCreateFolder(_settings?.JobsFolder), "JobData");
             AddUnique(_jobRows, created);
         }
         EditorGUILayout.EndHorizontal();
@@ -412,7 +436,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New Idle_Data", GUILayout.Width(110f)))
         {
-            Idle_Data created = CreateDataAsset<Idle_Data>(GetSettingsFolderPath(_settings?.idleDataFolder), "Idle_Data");
+            Idle_Data created = CreateDataAsset<Idle_Data>(GetCreateFolder(_settings?.IdlesFolder), "Idle_Data");
             AddIdleToJob(jobData, created);
         }
         EditorGUILayout.EndHorizontal();
@@ -671,7 +695,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New ItemsData", GUILayout.Width(110f)))
         {
-            ItemsData created = CreateDataAsset<ItemsData>(GetSettingsFolderPath(_settings?.itemsDataFolder), "ItemsData");
+            ItemsData created = CreateDataAsset<ItemsData>(GetCreateFolder(_settings?.ItemsFolder), "ItemsData");
             AddUnique(_itemRows, created);
         }
         EditorGUILayout.EndHorizontal();
@@ -873,7 +897,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New Idle_Data", GUILayout.Width(110f)))
         {
-            Idle_Data created = CreateDataAsset<Idle_Data>(GetSettingsFolderPath(_settings?.idleDataFolder), "Idle_Data");
+            Idle_Data created = CreateDataAsset<Idle_Data>(GetCreateFolder(_settings?.IdlesFolder), "Idle_Data");
             AddUnique(_idleRows, created);
         }
         EditorGUILayout.EndHorizontal();
@@ -1131,7 +1155,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         if (GUILayout.Button("New Monster_Data", GUILayout.Width(130f)))
         {
-            Monster_Data created = CreateDataAsset<Monster_Data>(GetSettingsFolderPath(_settings?.monstersDataFolder), "Monster_Data");
+            Monster_Data created = CreateDataAsset<Monster_Data>(GetCreateFolder(_settings?.MonstersFolder), "Monster_Data");
             AddUnique(_monsterRows, created);
         }
         EditorGUILayout.EndHorizontal();
@@ -1301,10 +1325,9 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
         HashSet<int> previousExpandedJobRows = new(_expandedJobRows);
 
-        string jobsFolder = GetSettingsFolderPath(_settings?.jobsDataFolder);
-        string itemsFolder = GetSettingsFolderPath(_settings?.itemsDataFolder);
-        string idleFolder = GetSettingsFolderPath(_settings?.idleDataFolder);
-        string monstersFolder = GetSettingsFolderPath(_settings?.monstersDataFolder);
+        // Everything loads from the active source's root folder, filtered by type. Subfolders are
+        // just dev organization - FindAssets recurses into them, so they're never required.
+        string root = GetSettingsFolderPath(_settings?.ActiveDataFolder);
 
         _jobRows.Clear();
         _itemRows.Clear();
@@ -1318,10 +1341,10 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _expandedJobRows.Clear();
         _pendingIdleAdds.Clear();
 
-        _jobRows.AddRange(LoadAssets<Job_Data>(jobsFolder));
-        _itemRows.AddRange(LoadAssets<ItemsData>(itemsFolder));
-        _idleRows.AddRange(LoadAssets<Idle_Data>(idleFolder));
-        _monsterRows.AddRange(LoadAssets<Monster_Data>(monstersFolder));
+        _jobRows.AddRange(LoadAssets<Job_Data>(root));
+        _itemRows.AddRange(LoadAssets<ItemsData>(root));
+        _idleRows.AddRange(LoadAssets<Idle_Data>(root));
+        _monsterRows.AddRange(LoadAssets<Monster_Data>(root));
 
         SortJobs();
         SortItems();
@@ -1353,9 +1376,15 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
 
     private static List<T> LoadAssets<T>(string folderPath) where T : ScriptableObject
     {
-        string[] guids = AssetDatabase.IsValidFolder(folderPath)
-            ? AssetDatabase.FindAssets($"t:{typeof(T).Name}", new[] { folderPath })
-            : AssetDatabase.FindAssets($"t:{typeof(T).Name}");
+        // Strictly scope to the active data source's folder - no project-wide fallback - so the
+        // spreadsheet only ever shows the currently selected source (Real vs Testing). An invalid
+        // folder shows nothing (the Settings window warns about invalid paths).
+        if (!AssetDatabase.IsValidFolder(folderPath))
+        {
+            return new List<T>();
+        }
+
+        string[] guids = AssetDatabase.FindAssets($"t:{typeof(T).Name}", new[] { folderPath });
 
         List<T> assets = new();
         foreach (string guid in guids)
@@ -1445,6 +1474,20 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         }
 
         return path.Replace('\\', '/').TrimEnd('/');
+    }
+
+    // Where a "New ..." asset is created: the type's conventional subfolder if it already exists,
+    // otherwise the active source root. Subfolders are optional organization, so we never require
+    // the dev to pre-create one - loading scans the root recursively regardless.
+    private string GetCreateFolder(string subfolder)
+    {
+        string sub = GetSettingsFolderPath(subfolder);
+        if (AssetDatabase.IsValidFolder(sub))
+        {
+            return sub;
+        }
+
+        return GetSettingsFolderPath(_settings?.ActiveDataFolder);
     }
 
     private static void DrawDropZone<T>(string text, Action<T> onDrop) where T : UnityEngine.Object

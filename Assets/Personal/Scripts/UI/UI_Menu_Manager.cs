@@ -19,21 +19,23 @@ public class UI_Menu_Entry
     [Tooltip("The panel GameObject to toggle. It is the root of this menu's UI inside the menu container.")]
     public GameObject panel;
 
-    [TypeFilter(typeof(Button), typeof(UI_Button))]
-    [Tooltip("Optional: the button that opens this menu. Accepts a native Button or a UI_Button. Auto-wired at runtime.")]
-    public UnityEngine.Object openButton;
+    [Tooltip("Optional: the button object that opens this menu. Drag a GameObject with a native " +
+             "Button or a UI_Button - whichever it has is used. Auto-wired at runtime.")]
+    public GameObject openButton;
 
     public bool IsValid => panel != null && !string.IsNullOrWhiteSpace(menuName);
 
-    /// <summary>The clickable Button behind the assigned opener (native Button or UI_Button), or null.</summary>
+    /// <summary>The clickable Button on the opener object (UI_Button's button wins), or null.</summary>
     public Button ResolveOpenButton()
     {
-        return openButton switch
-        {
-            UI_Button uiButton => uiButton.button,
-            Button button => button,
-            _ => null
-        };
+        if (openButton == null)
+            return null;
+
+        UI_Button uiButton = openButton.GetComponent<UI_Button>();
+        if (uiButton != null && uiButton.button != null)
+            return uiButton.button;
+
+        return openButton.GetComponent<Button>();
     }
 
     public bool Matches(string otherName)
@@ -60,11 +62,8 @@ public class UI_Menu_Entry
 /// (which panel is on, default on start, lookup by name) is handled automatically.
 /// </summary>
 [DisallowMultipleComponent]
-public class UI_Menu_Manager : MonoBehaviour
+public class UI_Menu_Manager : Singleton<UI_Menu_Manager>
 {
-    /// <summary>The active manager in the current scene. Set in Awake.</summary>
-    public static UI_Menu_Manager Instance { get; private set; }
-
     [Title("Menus")]
     [Tooltip("Each entry pairs a unique name with the panel it shows. Only one panel is active at a time.")]
     public List<UI_Menu_Entry> menus = new();
@@ -83,12 +82,15 @@ public class UI_Menu_Manager : MonoBehaviour
     /// <summary>Name of the menu currently shown, or empty if none.</summary>
     public string ActiveMenu => activeMenu;
 
-    void Awake()
-    {
-        if (Instance != null && Instance != this)
-            Debug.LogWarning($"[UI_Menu_Manager] A second manager '{name}' was found. There should be one per scene.", this);
+    /// <summary>Raised whenever the active menu changes (passes the new active menu name, or empty).</summary>
+    public event Action<string> OnMenuChanged;
 
-        Instance = this;
+    protected override void Awake()
+    {
+        base.Awake();
+        if (Instance != this)
+            return;
+
         WireOpenButtons();
     }
 
@@ -116,12 +118,6 @@ public class UI_Menu_Manager : MonoBehaviour
             Show(defaultMenu);
     }
 
-    void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
-
     /// <summary>
     /// Shows the menu with the given name and hides every other menu.
     /// Pass an empty/unknown name to simply hide everything.
@@ -142,6 +138,7 @@ public class UI_Menu_Manager : MonoBehaviour
         }
 
         activeMenu = found ? menuName : string.Empty;
+        OnMenuChanged?.Invoke(activeMenu);
 
         if (!found && !string.IsNullOrWhiteSpace(menuName))
             Debug.LogWarning($"[UI_Menu_Manager] No menu named '{menuName}'.", this);
@@ -154,6 +151,7 @@ public class UI_Menu_Manager : MonoBehaviour
             menus[i]?.SetActive(false);
 
         activeMenu = string.Empty;
+        OnMenuChanged?.Invoke(activeMenu);
     }
 
     public bool HasMenu(string menuName)

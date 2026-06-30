@@ -17,8 +17,10 @@ MonoBehaviour:
   jobCategory: 1
   maxLevel: 100
   idleDatas:
-  - {fileID: 11400000, guid: 30ecf95fafdf46f4b8d38ccebf2099d8, type: 2}
-  - {fileID: 11400000, guid: 3220b963e996424fb2067f0a20709b02, type: 2}
-  - {fileID: 11400000, guid: 09d62dff53574e5aa5a42a9cc69e0dae, type: 2}
-  - {fileID: 11400000, guid: 76816d0309df4dbab5b5edff8ec7da41, type: 2}
+  - {fileID: 11400000, guid: 3fcb6674b87d4d9486d8e20a5af6de69, type: 2}
+  - {fileID: 11400000, guid: 35a765d3f0664cbd854c55cbf41ee446, type: 2}
+  - {fileID: 11400000, guid: dfb51d8a0e664890b259789432ee4e4f, type: 2}
+  - {fileID: 11400000, guid: 7eb4de3ab01144c7a05b21d07fc58c7b, type: 2}
+  - {fileID: 11400000, guid: ca4f49c20da34c04a1575e81cbd96425, type: 2}
+  - {fileID: 11400000, guid: 6329afd6c52642758ad96e7fa055e0a0, type: 2}
   idleCardPrefabOverride: {fileID: 0}

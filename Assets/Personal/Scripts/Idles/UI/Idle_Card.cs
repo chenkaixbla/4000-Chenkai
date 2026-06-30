@@ -23,15 +23,10 @@ public class Idle_Card : MonoBehaviour
     [Tooltip("Free-form line for xp/s, rewards, etc.")]
     public TMP_Text infoText;
 
-    [Tooltip("Level label, formatted \"Level: ##\".")]
-    public TMP_Text levelText;
-    [Tooltip("Experience label, formatted \"current/max\".")]
-    public TMP_Text experienceText;
-
-    [Tooltip("Fill image for the level / XP bar.")]
-    public Image levelBarFill;
-    [Tooltip("Fill image for the action timer bar.")]
-    public Image timerBarFill;
+    [Tooltip("Level / XP bar. Its title shows \"Level: ##\" and its value shows XP current/max.")]
+    public UI_Bar levelBar;
+    [Tooltip("Action timer bar.")]
+    public UI_Bar timerBar;
 
     public Button toggleButton;
 
@@ -118,17 +113,17 @@ public class Idle_Card : MonoBehaviour
         if (infoText != null)
             infoText.text = $"Idle XP/s {data.GetIdleXpPerSecond():0.##}   Job XP/s {data.GetJobXpPerSecond():0.##}";
 
-        if (levelText != null)
-            levelText.text = $"Level: {bound.level}";
+        if (levelBar != null)
+        {
+            if (levelBar.titleText != null)
+                levelBar.titleText.text = $"Level: {bound.level}";
 
-        if (experienceText != null)
-            experienceText.text = $"{bound.currentXP}/{bound.maxXP}";
+            levelBar.maxValue = bound.maxXP;
+            levelBar.SetValue(bound.currentXP);
+        }
 
-        if (levelBarFill != null)
-            levelBarFill.fillAmount = bound.GetNormalizedLevelProgress();
-
-        if (timerBarFill != null)
-            timerBarFill.fillAmount = bound.GetNormalizedProgress();
+        if (timerBar != null)
+            timerBar.SetFill(bound.GetNormalizedProgress());
 
         for (int i = 0; i < extensions.Length; i++)
             extensions[i]?.OnRefresh(bound);
@@ -138,10 +133,14 @@ public class Idle_Card : MonoBehaviour
     {
         if (nameText != null) nameText.text = "-";
         if (infoText != null) infoText.text = string.Empty;
-        if (levelText != null) levelText.text = string.Empty;
-        if (experienceText != null) experienceText.text = string.Empty;
-        if (levelBarFill != null) levelBarFill.fillAmount = 0f;
-        if (timerBarFill != null) timerBarFill.fillAmount = 0f;
+
+        if (levelBar != null)
+        {
+            if (levelBar.titleText != null) levelBar.titleText.text = string.Empty;
+            levelBar.SetFill(0f);
+        }
+
+        if (timerBar != null) timerBar.SetFill(0f);
     }
 
     void RaiseToggle() => ToggleRequested?.Invoke(this);

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using EditorAttributes;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,31 +12,38 @@ using UnityEngine.UI;
 ///   instead of destroying/instantiating. The pool is set up at runtime; nothing to wire.
 /// - Runtimes persist per job, so a job keeps its state when you switch away and back.
 ///
-/// Card look per job: <see cref="defaultCardPrefab"/> is the basic card; a job can override
-/// it with <c>Job_Data.idleCardPrefabOverride</c> for special formatting. Resolution is
-/// 'job override, else default' (per-job + default).
+/// Card look per job: resolved as <see cref="jobCards"/> entry, else
+/// <c>Job_Data.idleCardPrefabOverride</c>, else <see cref="defaultCardPrefab"/>. When a
+/// <see cref="gridLayout"/> is assigned, its cell size is set to match the spawned card's
+/// size, so different jobs can use differently-sized cards.
 /// </summary>
-[DisallowMultipleComponent]
-public class Idle_UI : MonoBehaviour
+[System.Serializable]
+public class Idle_JobCard
 {
-    public static Idle_UI Instance { get; private set; }
+    public Job_Data job;
+    public Idle_Card cardPrefab;
+}
 
+[DisallowMultipleComponent]
+public class Idle_UI : Singleton<Idle_UI>
+{
     [Title("Spawning")]
     [Required]
-    [Tooltip("The basic idle card used when a job has no override.")]
+    [Tooltip("The basic idle card used when a job has no entry/override.")]
     public Idle_Card defaultCardPrefab;
 
     [Required]
     [Tooltip("Parent the spawned idle cards are placed under (e.g. a layout group).")]
     public Transform cardParent;
 
-    [Title("Current Job Display (all optional)")]
-    [Tooltip("Level label for the job being viewed. Formatted \"Level: ##\".")]
-    public TMP_Text jobLevelText;
-    [Tooltip("Experience label for the job being viewed. Formatted \"current/max\".")]
-    public TMP_Text jobExperienceText;
-    [Tooltip("Fill image for the job level / XP bar.")]
-    public Image jobLevelBarFill;
+    [Tooltip("Optional: grid whose cell size is set to match each job's card prefab size.")]
+    public GridLayoutGroup gridLayout;
+
+    // Per-job card prefab, edited via the custom Idle_UI inspector table (excluded from the
+    // default fields). Resolution order: this entry, else Job_Data.idleCardPrefabOverride,
+    // else defaultCardPrefab.
+    [SerializeField]
+    List<Idle_JobCard> jobCards = new();
 
     [Title("Runtime")]
     [ReadOnly, SerializeField]
@@ -54,15 +60,11 @@ public class Idle_UI : MonoBehaviour
 
     readonly List<Idle_Card> activeCards = new();
 
-    // The job whose level/xp is currently shown in the Current Job Display.
-    Job_Runtime boundJob;
-
-    void Awake()
+    protected override void Awake()
     {
-        if (Instance != null && Instance != this)
-            Debug.LogWarning($"[Idle_UI] A second Idle_UI '{name}' was found. There should be one per scene.", this);
-
-        Instance = this;
+        base.Awake();
+        if (Instance != this)
+            return;
 
         GameObject root = new GameObject("PooledIdleCards");
         root.transform.SetParent(transform, false);
@@ -70,30 +72,23 @@ public class Idle_UI : MonoBehaviour
         poolRoot = root.transform;
     }
 
-    void OnDestroy()
-    {
-        UnbindJobDisplay();
-
-        if (Instance == this)
-            Instance = null;
-    }
-
     /// <summary>Shows the idle cards for the given job, reusing pooled cards.</summary>
     public void ShowJob(Job_Data job)
     {
         ReturnActiveCards();
-        BindJobDisplay(job);
 
         activeJob = job != null ? job.jobName : string.Empty;
         if (job == null)
             return;
 
-        Idle_Card prefab = job.idleCardPrefabOverride != null ? job.idleCardPrefabOverride : defaultCardPrefab;
+        Idle_Card prefab = ResolveCardPrefab(job);
         if (prefab == null)
         {
             Debug.LogWarning($"[Idle_UI] No card prefab for job '{job.jobName}' (set a default or a job override).", this);
             return;
         }
+
+        ApplyGridCellSize(prefab);
 
         List<Idle_Runtime> runtimes = ResolveRuntimes(job);
         for (int i = 0; i < runtimes.Count; i++)
@@ -107,6 +102,69 @@ public class Idle_UI : MonoBehaviour
         }
     }
 
+    // Card prefab for a job: jobCards entry first, then the job's own override, then the default.
+    Idle_Card ResolveCardPrefab(Job_Data job)
+    {
+        for (int i = 0; i < jobCards.Count; i++)
+        {
+            if (jobCards[i] != null && jobCards[i].job == job && jobCards[i].cardPrefab != null)
+                return jobCards[i].cardPrefab;
+        }
+
+        return job.idleCardPrefabOverride != null ? job.idleCardPrefabOverride : defaultCardPrefab;
+    }
+
+    /// <summary>The card prefab mapped to this job in <see cref="jobCards"/>, or null. (Editor use.)</summary>
+    public Idle_Card GetJobCard(Job_Data job)
+    {
+        for (int i = 0; i < jobCards.Count; i++)
+        {
+            if (jobCards[i] != null && jobCards[i].job == job)
+                return jobCards[i].cardPrefab;
+        }
+
+        return null;
+    }
+
+    /// <summary>Sets (or clears, if null) the card prefab mapped to a job. (Editor use.)</summary>
+    public void SetJobCard(Job_Data job, Idle_Card card)
+    {
+        if (job == null)
+            return;
+
+        for (int i = 0; i < jobCards.Count; i++)
+        {
+            if (jobCards[i] == null || jobCards[i].job != job)
+                continue;
+
+            if (card == null)
+                jobCards.RemoveAt(i);
+            else
+                jobCards[i].cardPrefab = card;
+            return;
+        }
+
+        if (card != null)
+            jobCards.Add(new Idle_JobCard { job = job, cardPrefab = card });
+    }
+
+    // Matches the grid's cell size to the card prefab's authored size, so each job's cards
+    // render at their own size. Pooling is unaffected (the pool is keyed by prefab).
+    void ApplyGridCellSize(Idle_Card prefab)
+    {
+        if (gridLayout == null || prefab == null)
+            return;
+
+        if (prefab.transform is RectTransform prefabRect)
+        {
+            Vector2 size = prefabRect.rect.size;
+            if (size.x <= 0f || size.y <= 0f)
+                size = prefabRect.sizeDelta;
+
+            gridLayout.cellSize = size;
+        }
+    }
+
     void HandleToggle(Idle_Card card)
     {
         if (card.Bound == null)
@@ -116,59 +174,6 @@ public class Idle_UI : MonoBehaviour
             Idle_Manager.Instance.ToggleIdle(card.Bound);
         else
             card.Bound.Toggle();
-    }
-
-    // --- Current Job Display (level / xp for the job being viewed) ---
-
-    void BindJobDisplay(Job_Data job)
-    {
-        UnbindJobDisplay();
-
-        if (job == null || Job_Manager.Instance == null)
-        {
-            ClearJobDisplay();
-            return;
-        }
-
-        boundJob = Job_Manager.Instance.GetRuntime(job);
-        if (boundJob == null)
-        {
-            ClearJobDisplay();
-            return;
-        }
-
-        boundJob.OnUpdated += RefreshJobDisplay;
-        RefreshJobDisplay();
-    }
-
-    void UnbindJobDisplay()
-    {
-        if (boundJob != null)
-            boundJob.OnUpdated -= RefreshJobDisplay;
-
-        boundJob = null;
-    }
-
-    void RefreshJobDisplay()
-    {
-        if (boundJob == null)
-            return;
-
-        if (jobLevelText != null)
-            jobLevelText.text = $"Level: {boundJob.level}";
-
-        if (jobExperienceText != null)
-            jobExperienceText.text = $"{boundJob.currentXP}/{boundJob.maxXP}";
-
-        if (jobLevelBarFill != null)
-            jobLevelBarFill.fillAmount = boundJob.GetNormalizedLevelProgress();
-    }
-
-    void ClearJobDisplay()
-    {
-        if (jobLevelText != null) jobLevelText.text = string.Empty;
-        if (jobExperienceText != null) jobExperienceText.text = string.Empty;
-        if (jobLevelBarFill != null) jobLevelBarFill.fillAmount = 0f;
     }
 
     // Runtimes come from the Idle_Manager (it owns them and ticks them). If no manager is
