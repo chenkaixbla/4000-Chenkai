@@ -30,3 +30,9 @@ MonoBehaviour:
     amount: 1
   - item: {fileID: 11400000, guid: fc83c49831554557abce7b0832e66fdc, type: 2}
     amount: 1
+  craftingRewards:
+  - target: 0
+    job: {fileID: 11400000, guid: 8502e0d5dfad4a699cfbfb4ab102496b, type: 2}
+    idle: {fileID: 0}
+    grant: 0
+    amount: 80

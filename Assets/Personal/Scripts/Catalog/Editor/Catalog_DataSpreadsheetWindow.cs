@@ -10,7 +10,8 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         Jobs,
         Items,
         Idles,
-        Monsters
+        Monsters,
+        Recipes
     }
 
     private enum Catalog_ItemFilter
@@ -35,6 +36,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private enum Items_Sort { Name, ID, Type, Price }
     private enum Idles_Sort { Name, Interval, JobXP, Kind }
     private enum Monsters_Sort { Name, CombatLevel, AttackType, Speed }
+    private enum Recipes_Sort { Name, Interval, JobXP, Produces }
 
     private const string SettingsAssetPath = "Assets/Personal/Scripts/Catalog/Catalog_DataSettings.asset";
     private const string StretchTablesPrefKey = "Catalog_DataSpreadsheetWindow.StretchTables";
@@ -44,18 +46,22 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private static readonly float[] ItemsTableBaseWidths = { 30f, ObjectCellWidth, 100f, 70f, 150f, 260f, 80f, 90f, 24f };
     private static readonly float[] IdleAssetsTableBaseWidths = { 30f, ObjectCellWidth, 140f, 75f, 95f, 85f, 200f, 70f, 24f };
     private static readonly float[] MonstersTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 90f, 70f, 70f, 24f };
+    private static readonly float[] RecipesTableBaseWidths = { 30f, ObjectCellWidth, 150f, 80f, 90f, 85f, 70f, 24f };
 
     private readonly List<Job_Data> _jobRows = new();
     private readonly List<ItemsData> _itemRows = new();
     private readonly List<Idle_Data> _idleRows = new();
     private readonly List<Monster_Data> _monsterRows = new();
+    private readonly List<Idle_Data_Crafting> _recipeRows = new();
     private readonly Dictionary<int, Idle_Data> _pendingIdleAdds = new();
     private readonly HashSet<int> _selectedJobIds = new();
     private readonly HashSet<int> _selectedItemIds = new();
     private readonly HashSet<int> _selectedIdleAssetIds = new();
     private readonly HashSet<int> _selectedMonsterIds = new();
+    private readonly HashSet<int> _selectedRecipeIds = new();
     private readonly Dictionary<int, HashSet<int>> _selectedIdleIds = new();
     private readonly HashSet<int> _expandedJobRows = new();
+    private readonly HashSet<int> _expandedRecipeRows = new();
 
     private Catalog_DataSettings _settings;
     private Job_Data _idleCategoryFilterJob;
@@ -66,20 +72,24 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private Items_Sort _itemSort = Items_Sort.Name;
     private Idles_Sort _idleSort = Idles_Sort.Name;
     private Monsters_Sort _monsterSort = Monsters_Sort.Name;
+    private Recipes_Sort _recipeSort = Recipes_Sort.Name;
     private bool _jobSortDesc;
     private bool _itemSortDesc;
     private bool _idleSortDesc;
     private bool _monsterSortDesc;
+    private bool _recipeSortDesc;
     private Vector2 _jobsTableScroll;
     private Vector2 _itemsScroll;
     private Vector2 _idleScroll;
     private Vector2 _monstersScroll;
+    private Vector2 _recipesScroll;
     private bool _stretchTables = true;
 
     private Job_Data _pendingJobToAdd;
     private ItemsData _pendingItemToAdd;
     private Idle_Data _pendingIdleToAdd;
     private Monster_Data _pendingMonsterToAdd;
+    private Idle_Data_Crafting _pendingRecipeToAdd;
 
     [MenuItem("Tools/Catalog/Data Spreadsheet")]
     public static void OpenWindow()
@@ -141,6 +151,11 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
                 DrawMonstersCategory();
                 EditorGUILayout.EndScrollView();
                 break;
+            case Catalog_Tab.Recipes:
+                _recipesScroll = EditorGUILayout.BeginScrollView(_recipesScroll, !_stretchTables, true);
+                DrawRecipesCategory();
+                EditorGUILayout.EndScrollView();
+                break;
         }
     }
 
@@ -148,7 +163,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-        _activeTab = (Catalog_Tab)GUILayout.Toolbar((int)_activeTab, new[] { "Jobs", "Items", "Idles", "Monsters" }, EditorStyles.toolbarButton);
+        _activeTab = (Catalog_Tab)GUILayout.Toolbar((int)_activeTab, new[] { "Jobs", "Items", "Idles", "Monsters", "Recipes" }, EditorStyles.toolbarButton);
 
         GUILayout.FlexibleSpace();
 
@@ -1319,6 +1334,336 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         return removeRow;
     }
 
+    // --- Recipes tab (Idle_Data_Crafting): item-tab-like rows, each expandable to edit its recipe ---
+
+    private void DrawRecipesCategory()
+    {
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("Item Recipes", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Crafting idles (Idle_Data_Crafting). Expand a row to edit its Produces / Required items.", MessageType.None);
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("Sort By", GUILayout.Width(46f));
+        EditorGUI.BeginChangeCheck();
+        _recipeSort = (Recipes_Sort)EditorGUILayout.EnumPopup(_recipeSort, GUILayout.Width(120f));
+        bool recipeSortChanged = EditorGUI.EndChangeCheck();
+        bool recipeDesc = DrawSortDirection(_recipeSortDesc);
+        if (recipeDesc != _recipeSortDesc) { _recipeSortDesc = recipeDesc; recipeSortChanged = true; }
+        if (recipeSortChanged) SortRecipes();
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        _pendingRecipeToAdd = (Idle_Data_Crafting)EditorGUILayout.ObjectField("Add Existing Recipe", _pendingRecipeToAdd, typeof(Idle_Data_Crafting), false);
+        using (new EditorGUI.DisabledScope(_pendingRecipeToAdd == null))
+        {
+            if (GUILayout.Button("Add", GUILayout.Width(70f)))
+            {
+                AddUnique(_recipeRows, _pendingRecipeToAdd);
+                _pendingRecipeToAdd = null;
+            }
+        }
+
+        if (GUILayout.Button("New Recipe", GUILayout.Width(110f)))
+        {
+            Idle_Data_Crafting created = CreateDataAsset<Idle_Data_Crafting>(GetCreateFolder(_settings?.IdlesFolder), "Idle_Data_Crafting");
+            AddUnique(_recipeRows, created);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        DrawDropZone<Idle_Data_Crafting>(
+            "Drop Idle_Data_Crafting assets here",
+            droppedRecipe => AddUnique(_recipeRows, droppedRecipe));
+
+        DrawRecipesBulkActions();
+        float[] recipeColumnWidths = GetTableColumnWidths(position.width - 28f, RecipesTableBaseWidths);
+        DrawRecipesHeader(recipeColumnWidths);
+
+        int removeIndex = -1;
+        for (int i = 0; i < _recipeRows.Count; i++)
+        {
+            if (DrawRecipeRow(i, recipeColumnWidths))
+            {
+                removeIndex = i;
+            }
+        }
+
+        if (removeIndex >= 0)
+        {
+            _recipeRows.RemoveAt(removeIndex);
+        }
+    }
+
+    private void DrawRecipesHeader(float[] widths)
+    {
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+        DrawHeaderCell("Sel", widths[0]);
+        DrawHeaderCell("Idle_Data_Crafting", widths[1]);
+        DrawHeaderCell("Display Name", widths[2]);
+        DrawHeaderCell("Interval", widths[3]);
+        DrawHeaderCell("Job XP", widths[4]);
+        DrawHeaderCell("Icon", widths[5]);
+        DrawHeaderCell("Recipe", widths[6]);
+        DrawHeaderCell("X", widths[7]);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawRecipesBulkActions()
+    {
+        PruneSelection(_selectedRecipeIds, _recipeRows);
+
+        int selectedCount = _selectedRecipeIds.Count;
+
+        EditorGUILayout.BeginHorizontal();
+
+        if (GUILayout.Button("Select All", GUILayout.Width(84f)))
+        {
+            foreach (Idle_Data_Crafting recipe in _recipeRows)
+            {
+                if (recipe != null)
+                {
+                    _selectedRecipeIds.Add(recipe.GetInstanceID());
+                }
+            }
+        }
+
+        if (GUILayout.Button("Clear", GUILayout.Width(56f)))
+        {
+            _selectedRecipeIds.Clear();
+        }
+
+        using (new EditorGUI.DisabledScope(selectedCount == 0))
+        {
+            if (GUILayout.Button("Delete Selected", GUILayout.Width(112f)))
+            {
+                List<Idle_Data_Crafting> selectedRecipes = GetSelectedObjects(_recipeRows, _selectedRecipeIds);
+                if (DeleteAssetsWithConfirmation(selectedRecipes, "Idle_Data_Crafting"))
+                {
+                    HashSet<int> deletedIds = new();
+                    foreach (Idle_Data_Crafting recipe in selectedRecipes)
+                    {
+                        if (recipe != null)
+                        {
+                            deletedIds.Add(recipe.GetInstanceID());
+                        }
+                    }
+
+                    _recipeRows.RemoveAll(recipe => recipe == null || deletedIds.Contains(recipe.GetInstanceID()));
+                    _selectedRecipeIds.ExceptWith(deletedIds);
+                    _expandedRecipeRows.ExceptWith(deletedIds);
+                }
+            }
+        }
+
+        GUILayout.FlexibleSpace();
+        EditorGUILayout.LabelField($"Selected: {selectedCount}", GUILayout.Width(90f));
+
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private bool DrawRecipeRow(int rowIndex, float[] widths)
+    {
+        Idle_Data_Crafting row = _recipeRows[rowIndex];
+        int rowId = row != null ? row.GetInstanceID() : 0;
+
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+
+        bool selected = row != null && _selectedRecipeIds.Contains(rowId);
+        bool nextSelected = EditorGUILayout.Toggle(selected, GUILayout.Width(widths[0]));
+        if (row != null && nextSelected != selected)
+        {
+            SetSelection(_selectedRecipeIds, rowId, nextSelected);
+        }
+
+        EditorGUI.BeginChangeCheck();
+        Idle_Data_Crafting changedRow = (Idle_Data_Crafting)EditorGUILayout.ObjectField(row, typeof(Idle_Data_Crafting), false, GUILayout.Width(widths[1]));
+        if (EditorGUI.EndChangeCheck())
+        {
+            if (row != null && changedRow != row)
+            {
+                _selectedRecipeIds.Remove(rowId);
+                _expandedRecipeRows.Remove(rowId);
+            }
+
+            _recipeRows[rowIndex] = changedRow;
+            row = changedRow;
+            rowId = row != null ? row.GetInstanceID() : 0;
+        }
+
+        if (row == null)
+        {
+            float emptyWidth = widths[2] + widths[3] + widths[4] + widths[5] + widths[6];
+            GUILayout.Label("Missing", GUILayout.Width(emptyWidth));
+            bool removeEmpty = GUILayout.Button("X", GUILayout.Width(widths[7]));
+            EditorGUILayout.EndHorizontal();
+            return removeEmpty;
+        }
+
+        SerializedObject serializedRow = new SerializedObject(row);
+        serializedRow.Update();
+
+        DrawCompactProperty(serializedRow.FindProperty("displayName"), widths[2]);
+        DrawCompactProperty(serializedRow.FindProperty("interval"), widths[3]);
+        DrawCompactProperty(serializedRow.FindProperty("jobXPReward"), widths[4]);
+        DrawCompactProperty(serializedRow.FindProperty("icon"), widths[5]);
+
+        bool expanded = _expandedRecipeRows.Contains(rowId);
+        bool nextExpanded = GUILayout.Toggle(expanded, expanded ? "▼ Hide" : "▶ Edit", EditorStyles.miniButton, GUILayout.Width(widths[6]));
+        if (nextExpanded != expanded)
+        {
+            SetSelection(_expandedRecipeRows, rowId, nextExpanded);
+            expanded = nextExpanded;
+        }
+
+        bool removeRow = GUILayout.Button("X", GUILayout.Width(widths[7]));
+        if (removeRow)
+        {
+            removeRow = DeleteAssetsWithConfirmation(new List<Idle_Data_Crafting> { row }, "Idle_Data_Crafting");
+            if (removeRow)
+            {
+                _selectedRecipeIds.Remove(rowId);
+                _expandedRecipeRows.Remove(rowId);
+            }
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        if (expanded && !removeRow)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            DrawItemStackList(serializedRow.FindProperty("produces"), "Produces");
+            DrawItemStackList(serializedRow.FindProperty("required"), "Required");
+            DrawCraftingRewardList(serializedRow.FindProperty("craftingRewards"), "Rewards");
+            EditorGUILayout.EndVertical();
+        }
+
+        if (serializedRow.ApplyModifiedProperties())
+        {
+            EditorUtility.SetDirty(row);
+        }
+
+        return removeRow;
+    }
+
+    // Editor for one Idle_ItemStack list (produces / required): item + amount rows with add/remove.
+    private static void DrawItemStackList(SerializedProperty listProperty, string title)
+    {
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+
+        if (listProperty == null)
+        {
+            EditorGUILayout.LabelField("-");
+            EditorGUILayout.EndVertical();
+            return;
+        }
+
+        int removeIndex = -1;
+        for (int i = 0; i < listProperty.arraySize; i++)
+        {
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(i);
+            SerializedProperty itemProperty = element.FindPropertyRelative("item");
+            SerializedProperty amountProperty = element.FindPropertyRelative("amount");
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Item", GUILayout.Width(36f));
+            itemProperty.objectReferenceValue = EditorGUILayout.ObjectField(itemProperty.objectReferenceValue, typeof(ItemsData), false, GUILayout.Width(ObjectCellWidth));
+            GUILayout.Label("x", GUILayout.Width(12f));
+            amountProperty.intValue = Mathf.Max(1, EditorGUILayout.IntField(amountProperty.intValue, GUILayout.Width(50f)));
+            if (GUILayout.Button("X", GUILayout.Width(24f)))
+            {
+                removeIndex = i;
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        if (removeIndex >= 0)
+        {
+            listProperty.DeleteArrayElementAtIndex(removeIndex);
+        }
+
+        if (GUILayout.Button("Add Item", GUILayout.Width(90f)))
+        {
+            listProperty.InsertArrayElementAtIndex(listProperty.arraySize);
+            SerializedProperty added = listProperty.GetArrayElementAtIndex(listProperty.arraySize - 1);
+            added.FindPropertyRelative("item").objectReferenceValue = null;
+            added.FindPropertyRelative("amount").intValue = 1;
+        }
+
+        EditorGUILayout.EndVertical();
+    }
+
+    // Editor for the crafting Rewards list: each row grants XP or whole levels to a job or idle.
+    private static void DrawCraftingRewardList(SerializedProperty listProperty, string title)
+    {
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+
+        if (listProperty == null)
+        {
+            EditorGUILayout.LabelField("-");
+            EditorGUILayout.EndVertical();
+            return;
+        }
+
+        int removeIndex = -1;
+        for (int i = 0; i < listProperty.arraySize; i++)
+        {
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(i);
+            SerializedProperty targetProperty = element.FindPropertyRelative("target");
+            SerializedProperty jobProperty = element.FindPropertyRelative("job");
+            SerializedProperty idleProperty = element.FindPropertyRelative("idle");
+            SerializedProperty grantProperty = element.FindPropertyRelative("grant");
+            SerializedProperty amountProperty = element.FindPropertyRelative("amount");
+
+            EditorGUILayout.BeginHorizontal();
+
+            // Target: Job (index 0) or Idle (index 1), then the matching object field.
+            targetProperty.enumValueIndex = EditorGUILayout.Popup(targetProperty.enumValueIndex, targetProperty.enumDisplayNames, GUILayout.Width(56f));
+            if (targetProperty.enumValueIndex == 0)
+            {
+                jobProperty.objectReferenceValue = EditorGUILayout.ObjectField(jobProperty.objectReferenceValue, typeof(Job_Data), false, GUILayout.Width(ObjectCellWidth));
+            }
+            else
+            {
+                idleProperty.objectReferenceValue = EditorGUILayout.ObjectField(idleProperty.objectReferenceValue, typeof(Idle_Data), false, GUILayout.Width(ObjectCellWidth));
+            }
+
+            GUILayout.Label("gains", GUILayout.Width(36f));
+            amountProperty.intValue = Mathf.Max(1, EditorGUILayout.IntField(amountProperty.intValue, GUILayout.Width(50f)));
+
+            // Grant: XP (index 0) or Level (index 1).
+            grantProperty.enumValueIndex = EditorGUILayout.Popup(grantProperty.enumValueIndex, grantProperty.enumDisplayNames, GUILayout.Width(56f));
+            GUILayout.Label(grantProperty.enumValueIndex == 1 ? "level(s)" : "xp", GUILayout.Width(48f));
+
+            if (GUILayout.Button("X", GUILayout.Width(24f)))
+            {
+                removeIndex = i;
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        if (removeIndex >= 0)
+        {
+            listProperty.DeleteArrayElementAtIndex(removeIndex);
+        }
+
+        if (GUILayout.Button("Add Reward", GUILayout.Width(100f)))
+        {
+            listProperty.InsertArrayElementAtIndex(listProperty.arraySize);
+            SerializedProperty added = listProperty.GetArrayElementAtIndex(listProperty.arraySize - 1);
+            added.FindPropertyRelative("target").enumValueIndex = 0;
+            added.FindPropertyRelative("job").objectReferenceValue = null;
+            added.FindPropertyRelative("idle").objectReferenceValue = null;
+            added.FindPropertyRelative("grant").enumValueIndex = 0;
+            added.FindPropertyRelative("amount").intValue = 1;
+        }
+
+        EditorGUILayout.EndVertical();
+    }
+
     private void RefreshRowsFromFolders()
     {
         LoadOrCreateSettings();
@@ -1333,23 +1678,28 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         _itemRows.Clear();
         _idleRows.Clear();
         _monsterRows.Clear();
+        _recipeRows.Clear();
         _selectedJobIds.Clear();
         _selectedItemIds.Clear();
         _selectedIdleAssetIds.Clear();
         _selectedMonsterIds.Clear();
+        _selectedRecipeIds.Clear();
         _selectedIdleIds.Clear();
         _expandedJobRows.Clear();
+        _expandedRecipeRows.Clear();
         _pendingIdleAdds.Clear();
 
         _jobRows.AddRange(LoadAssets<Job_Data>(root));
         _itemRows.AddRange(LoadAssets<ItemsData>(root));
         _idleRows.AddRange(LoadAssets<Idle_Data>(root));
         _monsterRows.AddRange(LoadAssets<Monster_Data>(root));
+        _recipeRows.AddRange(LoadAssets<Idle_Data_Crafting>(root));
 
         SortJobs();
         SortItems();
         SortIdles();
         SortMonsters();
+        SortRecipes();
 
         Dictionary<int, Job_Data> jobsById = new();
         foreach (Job_Data jobData in _jobRows)
@@ -1588,6 +1938,7 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
     private void SortItems() => _itemRows.Sort(CompareItems);
     private void SortIdles() => _idleRows.Sort(CompareIdles);
     private void SortMonsters() => _monsterRows.Sort(CompareMonsters);
+    private void SortRecipes() => _recipeRows.Sort(CompareRecipes);
 
     private int CompareJobs(Job_Data a, Job_Data b)
     {
@@ -1651,6 +2002,22 @@ public class Catalog_DataSpreadsheetWindow : EditorWindow
         };
         if (result == 0) result = CompareText(MonsterName(a), MonsterName(b));
         return _monsterSortDesc ? -result : result;
+    }
+
+    private int CompareRecipes(Idle_Data_Crafting a, Idle_Data_Crafting b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int result = _recipeSort switch
+        {
+            Recipes_Sort.Interval => a.interval.CompareTo(b.interval),
+            Recipes_Sort.JobXP => a.jobXPReward.CompareTo(b.jobXPReward),
+            Recipes_Sort.Produces => (a.produces?.Count ?? 0).CompareTo(b.produces?.Count ?? 0),
+            _ => 0
+        };
+        if (result == 0) result = CompareText(IdleName(a), IdleName(b));
+        return _recipeSortDesc ? -result : result;
     }
 
     private static int CompareText(string a, string b) => string.Compare(a ?? string.Empty, b ?? string.Empty, StringComparison.OrdinalIgnoreCase);

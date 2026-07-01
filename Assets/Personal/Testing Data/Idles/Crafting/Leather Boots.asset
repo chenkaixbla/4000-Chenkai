@@ -22,3 +22,15 @@ MonoBehaviour:
   idleXPReward: 24
   jobXPReward: 12
   rewards: []
+  produces:
+  - item: {fileID: 11400000, guid: 56f2cda829ba44498b38d40ad0f94801, type: 2}
+    amount: 1
+  required:
+  - item: {fileID: 11400000, guid: fc83c49831554557abce7b0832e66fdc, type: 2}
+    amount: 2
+  craftingRewards:
+  - target: 0
+    job: {fileID: 11400000, guid: 8502e0d5dfad4a699cfbfb4ab102496b, type: 2}
+    idle: {fileID: 0}
+    grant: 0
+    amount: 40

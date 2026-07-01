@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3cf2e9fbbc8acbe40b4e825bf65dff2c, type: 3}
   m_Name: Catalog_DataSettings
   m_EditorClassIdentifier: Assembly-CSharp::Catalog_DataSettings
-  dataSource: 1
+  dataSource: 0
   realDataFolder: Assets/Personal/Data
   testingDataFolder: Assets/Personal/Testing Data

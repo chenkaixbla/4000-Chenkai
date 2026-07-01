@@ -21,3 +21,16 @@ MonoBehaviour:
   stopWhenCycleCannotRun: 1
   idleXPReward: 32
   jobXPReward: 16
+  rewards: []
+  produces:
+  - item: {fileID: 11400000, guid: b3ae80036db04be299d6999b0566f54f, type: 2}
+    amount: 1
+  required:
+  - item: {fileID: 11400000, guid: e0b075c49cea42e0bbe7767253438676, type: 2}
+    amount: 1
+  craftingRewards:
+  - target: 0
+    job: {fileID: 11400000, guid: 8502e0d5dfad4a699cfbfb4ab102496b, type: 2}
+    idle: {fileID: 0}
+    grant: 0
+    amount: 60

@@ -231,8 +231,14 @@ the selected job. Layers:
   formatting is added **without bloating scripts or touching `Idle_Runtime`**.
 - **`Idle_Data_Crafting`** ([Idles/Data/Idle_Data_Crafting.cs](Assets/Personal/Scripts/Idles/Data/Idle_Data_Crafting.cs))
   — `Idle_Data` subclass for crafting idles: `produces` + `required` lists of `Idle_ItemStack`
-  (`ItemsData` + amount). Since it IS an `Idle_Data`, drop a Idle_Data_Crafting asset straight
+  (`ItemsData` + amount), plus a `craftingRewards` list of **`Crafting_Reward`** (grant XP or whole
+  levels to a specific job **or** idle — `Crafting_RewardTarget` Job/Idle × `Crafting_RewardGrant`
+  XP/Level × amount; runtime granting not built yet). `idleKind` is force-locked to `Crafting`
+  (read-only, set in `OnEnable`/`OnValidate`). Since it IS an `Idle_Data`, drop the asset straight
   into a job's `idleDatas`. Has its own `Create → Game/Idles/Idle_Data_Crafting` menu.
+  - **Catalog:** the spreadsheet's **Recipes tab** lists all `Idle_Data_Crafting` (item-tab-like
+    rows: display name, interval, job XP, icon), each with a **`▶ Edit` expander** that reveals the
+    **Produces / Required / Rewards** editors (add/remove item stacks and reward rows inline).
 - **`Idle_Card_Crafting`** ([Idles/UI/Idle_Card_Crafting.cs](Assets/Personal/Scripts/Idles/UI/Idle_Card_Crafting.cs))
   — special card (an `Idle_Card_Extension`) for crafting jobs. `Idle_Card_ItemSlot` = icon +
   title + a runtime `item` ref. Slot lists: `produces` / `required` (filled from the bound
